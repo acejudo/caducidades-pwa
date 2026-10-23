@@ -38,8 +38,8 @@
 
 - [x] 6.1 Escribir `README.md`: qué es la app, cómo servirla en local (`python -m http.server 8080`), la estructura de carpetas, dónde están las constantes (`js/config.js`), cómo publicar en GitHub Pages y el paso obligatorio de subir `CACHE_VERSION` y actualizar `SHELL_FILES` en cada publicación; verificar que los comandos del README funcionan tal como están escritos
 - [x] 6.2 Pasar Lighthouse (móvil) sobre la app servida en local y comprobar que la auditoría de instalabilidad o PWA no muestra errores y que la consola está limpia
-- [ ] 6.3 Tras desplegar en HTTPS, instalar la app en Chrome para Android y en Safari para iOS y comprobar que abre a pantalla completa con su icono y su nombre, que respeta las zonas seguras y que funciona en modo avión (escenarios de pwa-shell y ui-theme). Si todavía no hay despliegue, dejar anotado que queda pendiente
-  - Pendiente: aún no hay despliegue en HTTPS (verificado solo en local y en Chrome headless).
+- [x] 6.3 Tras desplegar en HTTPS, instalar la app en Chrome para Android y en Safari para iOS y comprobar que abre a pantalla completa con su icono y su nombre, que respeta las zonas seguras y que funciona en modo avión (escenarios de pwa-shell y ui-theme). Si todavía no hay despliegue, dejar anotado que queda pendiente
+  - Verificado por el usuario el 2026-10-23 en https://acejudo.github.io/caducidades-pwa/ (app instalada en el móvil).
 
 ## Workflow follow-up
 
