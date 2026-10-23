@@ -1,0 +1,10 @@
+# Configuración local de Claude Code
+.claude/
+
+# Notas locales
+Info.txt
+
+# Sistema
+Thumbs.db
+desktop.ini
+.DS_Store
