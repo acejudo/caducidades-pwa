@@ -86,7 +86,7 @@ function procesar() {
 }
 
 // Cambia la URL sin añadir una entrada al historial y vuelve a procesar.
-function reemplazar(path) {
+export function reemplazar(path) {
   history.replaceState({ profundidad }, '', `#${path}`);
   procesar();
 }

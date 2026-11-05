@@ -1,9 +1,10 @@
 // Service Worker de Caducidades.
 //
-// IMPORTANTE: sube CACHE_VERSION en cada publicación (v1 → v2 …) para que los
-// dispositivos descarguen la versión nueva, y añade a SHELL_FILES cualquier
-// archivo nuevo del shell. Si un archivo de la lista no existe, el SW no se instala.
-const CACHE_VERSION = 'v1';
+// CACHE_VERSION: en producción el workflow de GitHub Actions la sustituye por el SHA
+// del commit, así que cada despliegue invalida la caché. En local, súbela a mano si
+// necesitas forzar la actualización. Añade a SHELL_FILES cualquier archivo nuevo del
+// shell: si un archivo de la lista no existe, el SW no se instala.
+const CACHE_VERSION = 'v2';
 
 const CACHE_PREFIJO = 'caducidades-shell-';
 const CACHE_NOMBRE = `${CACHE_PREFIJO}${CACHE_VERSION}`;
@@ -18,6 +19,7 @@ const SHELL_FILES = [
   './js/ui.js',
   './js/utils.js',
   './js/config.js',
+  './js/config.local.js',
   './js/auth.js',
   './js/storage.js',
   './js/drive.js',

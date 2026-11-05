@@ -1,11 +1,9 @@
 // Constantes de la aplicación.
-// El Client ID de OAuth de una app web es público por diseño: puede ir en el repositorio.
 
 export const APP_NOMBRE = 'Caducidades';
 
-// Se rellenarán en el cambio de autenticación.
-export const GOOGLE_CLIENT_ID = '';
-export const EMAILS_AUTORIZADOS = Object.freeze([]);
+// Datos sensibles: viven en config.local.js, fuera de git (ver config.local.example.js).
+export { GOOGLE_CLIENT_ID, EMAILS_AUTORIZADOS_SHA256 } from './config.local.js';
 
 export const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 export const DRIVE_CARPETA = 'Caducidades';

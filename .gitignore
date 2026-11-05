@@ -8,3 +8,6 @@ Info.txt
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# Configuración con datos sensibles (se genera con scripts/generar-config-local.mjs)
+js/config.local.js
