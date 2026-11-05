@@ -47,15 +47,19 @@ La app SHALL mostrar una barra de navegación inferior con accesos a Listado y A
 - **THEN** la barra de navegación inferior no es visible
 
 ### Requirement: Restricción de acceso a rutas
-La navegación SHALL ofrecer un punto de control que decida, antes de mostrar cada pantalla, si se permite el acceso o se redirige a otra ruta. Mientras no exista autenticación, ese control MUST permitir el acceso a todas las rutas.
+La navegación SHALL ofrecer un punto de control que decida, antes de mostrar cada pantalla, si se permite el acceso o se redirige a otra ruta. La autenticación (capacidad `user-auth`) usa este control. La ruta a la que redirige MUST ser una que el propio control permita, para que nunca se produzca un bucle de redirecciones.
 
 #### Scenario: Sin autenticación configurada
-- **WHEN** el usuario navega a cualquier ruta válida en esta versión
+- **WHEN** no hay ningún control registrado y el usuario navega a cualquier ruta válida
 - **THEN** la pantalla se muestra sin redirección
 
 #### Scenario: Control que redirige
 - **WHEN** hay registrado un control que niega el acceso a Listado y redirige a Login
 - **THEN** navegar a Listado muestra la pantalla Login
+
+#### Scenario: Sin bucles de redirección
+- **WHEN** el control redirige a Login a un usuario sin sesión
+- **THEN** se muestra Login de forma estable, sin redirecciones sucesivas
 
 ### Requirement: Flecha de volver en pantallas secundarias
 Las pantallas Nuevo producto, Detalle, Editar producto y Elegir foto SHALL mostrar en la cabecera una flecha de volver. Al pulsarla, la app MUST volver a la pantalla anterior de la propia app; si no hay ninguna (se entró directamente por URL), MUST ir a la pantalla padre de la ruta. Listado, Ajustes y Login MUST NOT mostrar la flecha.
@@ -73,7 +77,7 @@ Las pantallas Nuevo producto, Detalle, Editar producto y Elegir foto SHALL mostr
 - **THEN** la cabecera no tiene flecha de volver
 
 ### Requirement: Recorrido completo tocando
-Todas las pantallas SHALL ser accesibles tocando, sin escribir URLs: Listado ofrece un botón flotante "+" que abre Nuevo producto y un elemento de producto de ejemplo que abre su Detalle; Detalle ofrece un botón "Editar" que abre Editar producto; Nuevo y Editar ofrecen una zona de foto que abre Elegir foto. Mientras no exista la autenticación, Ajustes SHALL ofrecer un acceso a Login.
+Todas las pantallas de la sesión SHALL ser accesibles tocando, sin escribir URLs: Listado ofrece un botón flotante "+" que abre Nuevo producto y un elemento de producto de ejemplo que abre su Detalle; Detalle ofrece un botón "Editar" que abre Editar producto; Nuevo y Editar ofrecen una zona de foto que abre Elegir foto. Login se muestra solo cuando no hay sesión y se alcanza mediante "Cerrar sesión" en Ajustes.
 
 #### Scenario: Del listado al alta
 - **WHEN** el usuario pulsa el botón "+" en Listado
@@ -88,5 +92,5 @@ Todas las pantallas SHALL ser accesibles tocando, sin escribir URLs: Listado ofr
 - **THEN** se muestra Elegir foto y, al pulsar volver, regresa a Nuevo producto
 
 #### Scenario: App instalada sin barra de direcciones
-- **WHEN** el usuario usa la app instalada a pantalla completa
-- **THEN** puede llegar a las siete pantallas solo tocando elementos de la interfaz
+- **WHEN** un usuario con sesión usa la app instalada a pantalla completa
+- **THEN** puede llegar a las seis pantallas de la sesión solo tocando elementos de la interfaz
