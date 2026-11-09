@@ -4,6 +4,9 @@
 # Notas locales
 Info.txt
 info.txt
+specs.txt
+# Hoja de ruta y notas personales para Claude Code (se carga en cada sesión)
+CLAUDE.local.md
 
 # Sistema
 Thumbs.db
