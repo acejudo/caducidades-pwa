@@ -194,3 +194,25 @@ export function compararPorCaducidad(a, b) {
 export function ordenarPorCaducidad(lista) {
   return [...lista].sort(compararPorCaducidad);
 }
+
+// ---------- Filtros del listado ----------
+
+// Pestañas del listado, en orden. "Pronto" llega hasta el final del naranja.
+export const FILTROS = Object.freeze([
+  Object.freeze({ clave: 'todas', texto: 'Todas' }),
+  Object.freeze({ clave: 'pronto', texto: 'Pronto' }),
+  Object.freeze({ clave: 'caducadas', texto: 'Caducadas' }),
+]);
+
+const CUMPLE_FILTRO = {
+  todas: () => true,
+  pronto: (dias) => dias >= 0 && dias <= URGENCIA.naranjaMaxDias,
+  caducadas: (dias) => dias < 0,
+};
+
+// Productos de `lista` que cumplen `filtro` ('todas' | 'pronto' | 'caducadas') en la
+// fecha `hoy`. Conserva el orden y devuelve siempre una lista nueva.
+export function filtrarPorEstado(lista, filtro, hoy = new Date()) {
+  const cumple = CUMPLE_FILTRO[filtro] ?? CUMPLE_FILTRO.todas;
+  return lista.filter((producto) => cumple(diasRestantes(producto.fechaCaducidad, hoy)));
+}

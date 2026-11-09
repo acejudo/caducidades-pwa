@@ -26,6 +26,7 @@
     const resultado = document.getElementById('resultado');
     try {
       await import('./storage.test.js');
+      await import('./listado.test.js');
       await ejecutar();
     } catch (error) {
       // Un fallo al cargar las pruebas (p. ej. un módulo que no existe) también es un fallo.

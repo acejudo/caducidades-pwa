@@ -6,14 +6,17 @@
 const TIEMPO_MAXIMO_MS = 5000;
 
 const pruebas = [];
-let ganchoAntesDeCada = null;
+let ganchoVigente = null;
 
+// Cada prueba guarda el gancho `antesDeCada` vigente al registrarse: así cada archivo de
+// pruebas tiene el suyo aunque se carguen varios en la misma página.
 export function prueba(nombre, fn) {
-  pruebas.push({ nombre, fn });
+  pruebas.push({ nombre, fn, antes: ganchoVigente });
 }
 
+// Se aplica a las pruebas que se registren después de llamarlo.
 export function antesDeCada(fn) {
-  ganchoAntesDeCada = fn;
+  ganchoVigente = fn;
 }
 
 // ---------- Aserciones ----------
@@ -95,10 +98,10 @@ export async function ejecutar() {
   const resultado = document.getElementById('resultado');
   let fallos = 0;
 
-  for (const { nombre, fn } of pruebas) {
+  for (const { nombre, fn, antes } of pruebas) {
     const fila = document.createElement('li');
     try {
-      if (ganchoAntesDeCada) await conTiempoMaximo(Promise.resolve().then(ganchoAntesDeCada));
+      if (antes) await conTiempoMaximo(Promise.resolve().then(antes));
       await conTiempoMaximo(Promise.resolve().then(fn));
       fila.className = 'ok';
       fila.textContent = `✔ ${nombre}`;

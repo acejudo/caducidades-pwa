@@ -80,6 +80,13 @@ ol {
   --color-urgencia-rojo: #EF4444;
   --color-urgencia-naranja: #F97316;
   --color-urgencia-verde: #22C55E;
+  /* Insignias: fondo suave y texto oscuro del mismo tono (contraste >= 5:1) */
+  --color-urgencia-rojo-suave: #FEE2E2;
+  --color-urgencia-rojo-texto: #B91C1C;
+  --color-urgencia-naranja-suave: #FFEDD5;
+  --color-urgencia-naranja-texto: #9A3412;
+  --color-urgencia-verde-suave: #DCFCE7;
+  --color-urgencia-verde-texto: #166534;
 
   /* Formas */
   --radio-sm: 8px;
@@ -406,11 +413,140 @@ body {
   font-size: var(--texto-fecha);
 }
 
+/* ---------- Listado ---------- */
+
+.listado {
+  /* Hueco para que el botón "+" no tape la última tarjeta. */
+  padding-bottom: calc(56px + var(--espacio-4));
+}
+
+.pestanas {
+  display: flex;
+  margin-bottom: var(--espacio-4);
+  border-bottom: 1px solid var(--color-borde);
+}
+
+.pestana {
+  flex: 1;
+  min-height: var(--tactil-min);
+  padding: var(--espacio-2);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: none;
+  color: var(--color-texto-secundario);
+  font: inherit;
+  font-weight: var(--peso-medio);
+  cursor: pointer;
+}
+
+.pestana[aria-selected="true"] {
+  border-bottom-color: var(--color-primario);
+  color: var(--color-primario);
+  font-weight: var(--peso-semi);
+}
+
+.pestana:focus-visible {
+  outline: 2px solid var(--color-primario);
+  outline-offset: -2px;
+}
+
+.lista-productos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tarjeta--producto {
+  align-items: flex-start;
+  color: inherit;
+  text-decoration: none;
+}
+
+.tarjeta--producto:active {
+  background: var(--color-fondo-input);
+}
+
+.tarjeta__foto {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radio-sm);
+  background: var(--color-fondo-input);
+  color: var(--color-texto-secundario);
+  overflow: hidden;
+}
+
+.tarjeta__cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tarjeta--producto .tarjeta__nombre {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.tarjeta__caducidad,
+.tarjeta__cantidad {
+  font-size: var(--texto-secundario);
+  color: var(--color-texto-secundario);
+}
+
+.listado__vacio,
+.listado__error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--espacio-2);
+  padding: var(--espacio-6) var(--espacio-4);
+  text-align: center;
+  color: var(--color-texto-secundario);
+}
+
+.listado__vacio-titulo,
+.listado__error-titulo {
+  font-size: var(--texto-producto);
+  font-weight: var(--peso-semi);
+  color: var(--color-texto);
+}
+
+.listado__vacio-texto {
+  font-size: var(--texto-fecha);
+}
+
+.listado__error .btn {
+  margin-top: var(--espacio-2);
+}
+
 /* ---------- Utilidades ---------- */
 
-.urgencia--rojo { --color-urgencia: var(--color-urgencia-rojo); }
-.urgencia--naranja { --color-urgencia: var(--color-urgencia-naranja); }
-.urgencia--verde { --color-urgencia: var(--color-urgencia-verde); }
+.urgencia--rojo {
+  --color-urgencia: var(--color-urgencia-rojo);
+  --color-urgencia-suave: var(--color-urgencia-rojo-suave);
+  --color-urgencia-texto: var(--color-urgencia-rojo-texto);
+}
+.urgencia--naranja {
+  --color-urgencia: var(--color-urgencia-naranja);
+  --color-urgencia-suave: var(--color-urgencia-naranja-suave);
+  --color-urgencia-texto: var(--color-urgencia-naranja-texto);
+}
+.urgencia--verde {
+  --color-urgencia: var(--color-urgencia-verde);
+  --color-urgencia-suave: var(--color-urgencia-verde-suave);
+  --color-urgencia-texto: var(--color-urgencia-verde-texto);
+}
 
 .tarjeta[class*="urgencia--"] {
   border-left-color: var(--color-urgencia);
@@ -418,12 +554,13 @@ body {
 
 .badge {
   display: inline-block;
+  align-self: flex-start;
   padding: 2px var(--espacio-2);
   border-radius: var(--radio-completo);
   font-size: var(--texto-secundario);
   font-weight: var(--peso-semi);
-  color: var(--color-sobre-primario);
-  background: var(--color-urgencia, var(--color-texto-secundario));
+  color: var(--color-urgencia-texto, var(--color-texto));
+  background: var(--color-urgencia-suave, var(--color-fondo-input));
 }
 
 .solo-lectores {

@@ -13,6 +13,7 @@ const productos = await import('../src/js/productos.js').catch((error) => {
 const {
   normalizarProducto, validarProducto, nuevoProducto, aplicarCambios,
   diasRestantes, nivelUrgencia, textoCaducidad, ordenarPorCaducidad, marcarEliminado,
+  filtrarPorEstado, FILTROS,
 } = productos;
 
 // Datos mínimos válidos para partir de ellos en cada prueba.
@@ -294,5 +295,48 @@ describe('product-model: caducidad, urgencia y orden', () => {
     ];
     assert.deepEqual(ordenarPorCaducidad(lista).map((p) => p.id), ['a', 'b']);
     assert.deepEqual(ordenarPorCaducidad(lista.toReversed()).map((p) => p.id), ['a', 'b']);
+  });
+});
+
+describe('product-list: filtros por estado', () => {
+  const HOY = new Date(2026, 10, 17, 9, 30); // 17 nov 2026, hora local
+  // Fecha YYYY-MM-DD a `dias` de HOY.
+  const dentroDe = (dias) => {
+    const d = new Date(2026, 10, 17 + dias);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const conDias = (...dias) => dias.map((n) => ({ id: `p${n}`, nombre: `En ${n}`, fechaCaducidad: dentroDe(n) }));
+  const nombres = (lista) => lista.map((p) => p.nombre);
+
+  test('Filtro Pronto', () => {
+    const lista = conDias(-1, 0, 7, 8);
+    assert.deepEqual(nombres(filtrarPorEstado(lista, 'pronto', HOY)), ['En 0', 'En 7']);
+  });
+
+  test('Filtro Caducadas', () => {
+    const lista = conDias(-3, -1, 0, 5);
+    assert.deepEqual(nombres(filtrarPorEstado(lista, 'caducadas', HOY)), ['En -3', 'En -1']);
+  });
+
+  test('todas devuelve todo, en el mismo orden y sin modificar la lista', () => {
+    const lista = conDias(5, -2, 0);
+    const copia = structuredClone(lista);
+    assert.deepEqual(nombres(filtrarPorEstado(lista, 'todas', HOY)), ['En 5', 'En -2', 'En 0']);
+    assert.deepEqual(nombres(filtrarPorEstado(lista, 'pronto', HOY)), ['En 5', 'En 0']);
+    assert.deepEqual(lista, copia);
+    assert.notEqual(filtrarPorEstado(lista, 'todas', HOY), lista, 'devuelve una lista nueva');
+  });
+
+  test('el límite de Pronto es el final del naranja', () => {
+    const limite = constantes.URGENCIA.naranjaMaxDias;
+    const lista = conDias(limite, limite + 1);
+    assert.deepEqual(nombres(filtrarPorEstado(lista, 'pronto', HOY)), [`En ${limite}`]);
+  });
+
+  test('FILTROS: claves y textos de las pestañas', () => {
+    assert.deepEqual(FILTROS.map((f) => [f.clave, f.texto]), [
+      ['todas', 'Todas'], ['pronto', 'Pronto'], ['caducadas', 'Caducadas'],
+    ]);
+    assert.ok(Object.isFrozen(FILTROS));
   });
 });
