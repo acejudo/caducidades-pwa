@@ -55,6 +55,7 @@ Desarrollo con TDD (design.md §11): en cada bloque, primero las pruebas en **ro
 
 - [x] 10.1 Ejecutar `npm test` y `npm run test:navegador` (todo en verde, y cada escenario de `product-model` y `product-storage` tiene una prueba con su nombre), `openspec validate modelo-y-almacenamiento --strict` en verde, y comprobar que la app sigue arrancando con login y navegación como antes, sin errores en la consola
 - [ ] 10.2 (Requiere al usuario) En el móvil con la app instalada y tras desplegar: crear un producto desde la consola remota (o con una pantalla de prueba temporal), cerrar la app, abrirla en modo avión y comprobar que el producto sigue ahí
+  - Pendiente a propósito al archivar (2026-11-09): sin pantallas solo se puede hacer con consola remota. Se verificará en el cambio de pantallas de productos (crear desde el móvil, cerrar la app y abrirla en modo avión). La persistencia y el modo sin conexión ya están cubiertos por las pruebas de navegador y por la tarea 8.2.
 
 ## Workflow follow-up
 
