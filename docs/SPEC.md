@@ -3,7 +3,7 @@
 ## 1. Objetivo
 
 Aplicación web progresiva (PWA) sencilla para controlar las fechas de caducidad de los alimentos.  
-Uso **privado** exclusivo para dos personas (el desarrollador y su pareja).  
+Uso **privado** para un grupo reducido de personas autorizadas (por ejemplo, el desarrollador y su pareja). El número de usuarios no está limitado: lo define la lista blanca de emails.  
 No se publicará en ninguna tienda de aplicaciones.
 
 ---
@@ -175,7 +175,7 @@ Botones:
 - Login **obligatorio** con Google Identity Services
 - Scope necesario: `https://www.googleapis.com/auth/drive.file`
 - Lista blanca de emails autorizados (hardcodeada en el código):
-  - Solo los dos emails definidos podrán acceder
+  - Solo los emails definidos en la lista podrán acceder (tantos como se configuren)
   - Si un usuario inicia sesión con un email no autorizado → se muestra “Acceso denegado” y se cierra la sesión automáticamente
 
 ### 6.2 Flujo de autenticación
@@ -197,7 +197,7 @@ Botones:
 
 - Al ser una PWA estática, la lista de emails está en el cliente (no es seguridad militar)
 - La verificación real la realiza Google (cifrada)
-- Es suficiente y adecuada para un uso privado de dos personas
+- Es suficiente y adecuada para un uso privado de un grupo reducido de personas
 - La URL de la app puede ser pública, pero sin uno de los emails autorizados no se puede usar
 
 ---
@@ -215,7 +215,7 @@ Botones:
 
 - Se usa el campo `actualizado` (timestamp)
 - En caso de conflicto, gana la versión con la fecha de actualización más reciente
-- Estrategia simple (last-write-wins) suficiente al ser solo dos usuarios
+- Estrategia simple (last-write-wins) suficiente al ser un grupo reducido de usuarios
 
 ---
 

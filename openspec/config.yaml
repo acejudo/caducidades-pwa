@@ -1,32 +1,16 @@
 schema: spec-driven
 
-# Project context (optional)
-# Add only constraints that should guide OpenSpec artifacts and workflows.
-# Include constraints an agent cannot infer by reading the code.
-# Keep general project documentation and discoverable codebase facts out.
-# Example:
-#   context: |
-#     Designs and tasks must cover Windows, macOS, and Linux
-#     Write all artifacts in Spanish
+# Contexto del proyecto para los artefactos de OpenSpec (ver también CLAUDE.md).
+context: |
+  Caducidades: PWA privada para un grupo reducido de usuarios autorizados (lista blanca de emails, sin límite fijo), en HTML, CSS y JavaScript vanilla con módulos ES, sin dependencias de ejecución ni paso de build.
+  Fuentes de verdad: docs/SPEC.md (funcionalidad) y docs/DESIGN.md (diseño). Solo se publica src/ en GitHub Pages; los archivos nuevos del shell van en SHELL_FILES de src/sw.js.
+  Todos los artefactos se escriben en español.
+  Desarrollo con TDD obligatorio y pruebas versionadas en tests/, sin dependencias: lógica pura con node --test (npm test); código que necesita el navegador (IndexedDB, DOM) con la página tests/navegador/ y su mini-runner (npm run test:navegador). Los módulos puros no importan config.js (depende de config.local.js, con datos sensibles).
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always state what is out of scope
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
-
-# Per-operation guidance (optional)
-# Add advisory guidance for how apply and archive work should be conducted.
-# This is separate from artifact rules above.
-# Example:
-#   operations:
-#     apply:
-#       guidance:
-#         - Keep test summaries concise
-#     archive:
-#       guidance:
-#         - Summarize the archive outcome before finishing
+rules:
+  design:
+    - Incluir una decisión de estrategia de pruebas que indique qué se prueba en Node, qué en la página de pruebas del navegador y qué queda como verificación manual.
+  tasks:
+    - 'Organizar cada grupo en ciclos TDD: primero una tarea "Rojo" que escribe las pruebas de los escenarios de la spec (con el nombre del escenario) y verifica que fallan, después una tarea "Verde" que implementa hasta que pasan, y refactorizar con las pruebas en verde.'
+    - No dejar las pruebas para un grupo final; la verificación final solo ejecuta las baterías completas y las comprobaciones manuales.
+    - Las comprobaciones que no se pueden automatizar (Service Worker real, Google real, móvil instalado) van como tareas manuales explícitas.
