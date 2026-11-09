@@ -50,7 +50,7 @@ Desarrollo con TDD (design.md §12): en cada bloque, primero las pruebas en **ro
 
 - [x] 10.1 Ejecutar `npm test` y `npm run test:navegador` (todo en verde, y cada escenario de `product-list` tiene una prueba con su nombre), `openspec validate ui-listado --strict`, y comprobar que la app arranca sin errores en la consola
 - [x] 10.2 (Manual, en el PC) Con la app en `localhost` y productos creados desde la consola (`const s = await import('./js/storage.js'); await s.crearProducto({ nombre: 'Leche entera', fechaCaducidad: '<fecha>' })` con fechas pasadas, de hoy, de 3, 6 y 12 días): comprobar el aspecto frente al mockup, las tres pestañas, los colores, el recorrido tocando Listado → producto → Detalle → "Editar" → Editar, la flecha de volver y que el filtro se conserva; después, en DevTools en *Offline*, recargar y comprobar que el listado se sigue viendo
-- [ ] 10.3 (Manual, en el móvil, tras desplegar) Con la app instalada en Android o iOS: el listado vacío se ve bien ("Todavía no hay productos", "+" accesible, sin solaparse con la barra inferior ni con el notch) y abre sin conexión
+- [x] 10.3 (Manual, en el móvil, tras desplegar) Con la app instalada en Android o iOS: el listado vacío se ve bien ("Todavía no hay productos", "+" accesible, sin solaparse con la barra inferior ni con el notch) y abre sin conexión
 
 ## 11. Service Worker sin copias antiguas de la caché HTTP
 
