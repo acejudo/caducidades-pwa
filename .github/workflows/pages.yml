@@ -27,7 +27,7 @@ jobs:
         with:
           node-version: 22
 
-      - name: Generar js/config.local.js desde los Secrets
+      - name: Generar src/js/config.local.js desde los Secrets
         env:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           EMAILS_AUTORIZADOS: ${{ secrets.EMAILS_AUTORIZADOS }}
@@ -36,14 +36,14 @@ jobs:
       - name: Versionar la caché del Service Worker con el commit
         run: |
           VERSION="${GITHUB_SHA::7}"
-          sed -i "s/^const CACHE_VERSION = '.*';/const CACHE_VERSION = '${VERSION}';/" sw.js
-          grep -q "CACHE_VERSION = '${VERSION}'" sw.js
+          sed -i "s/^const CACHE_VERSION = '.*';/const CACHE_VERSION = '${VERSION}';/" src/sw.js
+          grep -q "CACHE_VERSION = '${VERSION}'" src/sw.js
 
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: src
 
       - id: despliegue
         uses: actions/deploy-pages@v4

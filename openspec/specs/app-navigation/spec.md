@@ -7,7 +7,7 @@ Define cómo se navega entre las pantallas de Caducidades: qué rutas existen, c
 ## Requirements
 
 ### Requirement: Rutas de pantalla
-La app SHALL ofrecer una ruta direccionable en la URL para cada pantalla de `SPEC.md` §5: Login, Listado, Nuevo producto, Detalle de producto (con id), Editar producto (con id), Elegir foto y Ajustes. Al entrar en una ruta, la app MUST mostrar la pantalla correspondiente con su título en español, aunque su contenido aún sea un marcador vacío.
+La app SHALL ofrecer una ruta direccionable en la URL para cada pantalla de `docs/SPEC.md` §5: Login, Listado, Nuevo producto, Detalle de producto (con id), Editar producto (con id), Elegir foto y Ajustes. Al entrar en una ruta, la app MUST mostrar la pantalla correspondiente con su título en español, aunque su contenido aún sea un marcador vacío.
 
 #### Scenario: Acceso directo a una ruta
 - **WHEN** el usuario abre la app con la URL de la pantalla Ajustes

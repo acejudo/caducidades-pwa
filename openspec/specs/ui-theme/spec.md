@@ -2,12 +2,12 @@
 
 ## Purpose
 
-Establece el sistema visual común de Caducidades según `DESIGN.md` (colores, colores de urgencia, tipografía, formas y tamaños táctiles) para que todas las pantallas tengan un aspecto coherente y fácil de mantener.
+Establece el sistema visual común de Caducidades según `docs/DESIGN.md` (colores, colores de urgencia, tipografía, formas y tamaños táctiles) para que todas las pantallas tengan un aspecto coherente y fácil de mantener.
 
 ## Requirements
 
 ### Requirement: Tokens de diseño centralizados
-Los colores, radios, sombras, espaciados y tamaños tipográficos SHALL definirse en un único lugar como valores con nombre que reutilizan todas las pantallas. Los valores MUST coincidir con `DESIGN.md` §2: primario `#2563EB`, fondo `#FFFFFF`, texto `#111827`, texto secundario `#6B7280`, bordes `#E5E7EB` y fondo de inputs `#F9FAFB`.
+Los colores, radios, sombras, espaciados y tamaños tipográficos SHALL definirse en un único lugar como valores con nombre que reutilizan todas las pantallas. Los valores MUST coincidir con `docs/DESIGN.md` §2: primario `#2563EB`, fondo `#FFFFFF`, texto `#111827`, texto secundario `#6B7280`, bordes `#E5E7EB` y fondo de inputs `#F9FAFB`.
 
 #### Scenario: Cambio de color primario
 - **WHEN** se cambia el valor del token del color primario
@@ -42,7 +42,7 @@ El diseño SHALL dejar margen en las zonas seguras del dispositivo para que la c
 - **THEN** la cabecera queda por debajo del notch y la navegación inferior por encima de la barra de inicio
 
 ### Requirement: Estilo base de componentes
-El sistema visual SHALL incluir estilos base para botón primario (fondo azul, texto blanco, esquinas muy redondeadas), botón secundario, botón de peligro, botón flotante circular y cabecera de pantalla, coherentes con `DESIGN.md` §4.
+El sistema visual SHALL incluir estilos base para botón primario (fondo azul, texto blanco, esquinas muy redondeadas), botón secundario, botón de peligro, botón flotante circular y cabecera de pantalla, coherentes con `docs/DESIGN.md` §4.
 
 #### Scenario: Botón primario
 - **WHEN** se pinta un botón marcado como primario

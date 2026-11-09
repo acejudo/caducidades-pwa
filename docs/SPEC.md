@@ -237,21 +237,25 @@ Botones:
 
 ```
 caducidades-pwa/
-├── index.html
-├── manifest.json
-├── sw.js                    # Service Worker
-├── css/
-│   └── styles.css
-├── js/
-│   ├── app.js
-│   ├── auth.js              # Google Sign-In restringido
-│   ├── storage.js           # Local + sincronización
-│   ├── drive.js             # Google Drive API
-│   ├── ui.js
-│   └── utils.js
-├── img/
-│   └── predeterminadas/     # Fotos predeterminadas
-├── SPEC.md                  # Este archivo
+├── src/                     # La app (lo único que se publica)
+│   ├── index.html
+│   ├── manifest.json
+│   ├── sw.js                # Service Worker
+│   ├── css/
+│   │   └── styles.css
+│   ├── js/
+│   │   ├── app.js
+│   │   ├── auth.js          # Google Sign-In restringido
+│   │   ├── storage.js       # Local + sincronización
+│   │   ├── drive.js         # Google Drive API
+│   │   ├── ui.js
+│   │   └── utils.js
+│   └── img/
+│       └── predeterminadas/ # Fotos predeterminadas
+├── docs/
+│   ├── SPEC.md              # Este archivo
+│   ├── DESIGN.md
+│   └── design/              # Mockups
 └── README.md
 ```
 

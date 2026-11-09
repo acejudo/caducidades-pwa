@@ -7,7 +7,7 @@ Permite instalar Caducidades como aplicación en la pantalla de inicio de Androi
 ## Requirements
 
 ### Requirement: Manifest de aplicación web
-La app SHALL publicar un Web App Manifest enlazado desde la página principal con nombre "Caducidades", nombre corto, idioma `es`, `display: standalone`, color de tema y de fondo de `DESIGN.md`, e iconos de 192×192 y 512×512 px (uno *maskable*). `start_url` y `scope` MUST ser relativos para que la app funcione publicada en un subdirectorio.
+La app SHALL publicar un Web App Manifest enlazado desde la página principal con nombre "Caducidades", nombre corto, idioma `es`, `display: standalone`, color de tema y de fondo de `docs/DESIGN.md`, e iconos de 192×192 y 512×512 px (uno *maskable*). `start_url` y `scope` MUST ser relativos para que la app funcione publicada en un subdirectorio.
 
 #### Scenario: Chrome Android reconoce la app como instalable
 - **WHEN** un usuario abre la app servida por HTTPS en Chrome para Android

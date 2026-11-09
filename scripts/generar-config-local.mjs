@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Genera js/config.local.js con el Client ID de Google y los hashes SHA-256 de los
+// Genera src/js/config.local.js con el Client ID de Google y los hashes SHA-256 de los
 // emails autorizados. Los emails en texto nunca se escriben en disco.
 //
 // Uso:
@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-const DESTINO = fileURLToPath(new URL('../js/config.local.js', import.meta.url));
+const DESTINO = fileURLToPath(new URL('../src/js/config.local.js', import.meta.url));
 const EMAIL_VALIDO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function argumento(nombre) {
@@ -48,4 +48,4 @@ ${hashes.map((h) => `  '${h}',`).join('\n')}
 `;
 
 writeFileSync(DESTINO, contenido, 'utf8');
-console.log(`js/config.local.js generado con ${hashes.length} email(s) autorizado(s).`);
+console.log(`src/js/config.local.js generado con ${hashes.length} email(s) autorizado(s).`);

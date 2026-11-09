@@ -57,7 +57,7 @@ function mostrarFaltaConfiguracion() {
   titulo.textContent = 'Falta la configuración';
   const texto = document.createElement('p');
   texto.className = 'marcador__nota';
-  texto.textContent = 'Falta js/config.local.js. Genéralo con scripts/generar-config-local.mjs (ver README.md).';
+  texto.textContent = 'Falta src/js/config.local.js. Genéralo con scripts/generar-config-local.mjs (ver README.md).';
   aviso.append(titulo, texto);
   contenido.replaceChildren(aviso);
 }
