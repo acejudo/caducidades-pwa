@@ -38,7 +38,9 @@ const SHELL_FILES = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NOMBRE)
-      .then((cache) => cache.addAll(SHELL_FILES))
+      // cache: 'reload': siempre de la red, nunca una copia antigua de la caché HTTP
+      // (GitHub Pages sirve con max-age=600). Ver design.md §13 de ui-listado.
+      .then((cache) => cache.addAll(SHELL_FILES.map((url) => new Request(url, { cache: 'reload' }))))
       .then(() => self.skipWaiting()),
   );
 });

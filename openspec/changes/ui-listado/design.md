@@ -86,6 +86,13 @@ Se elimina el producto de ejemplo de `ui.js`. Detalle, Editar y Elegir foto sigu
 ### 11. Service Worker
 Se añaden `./js/listado.js`, `./js/formato.js` y `./js/iconos.js` a `SHELL_FILES`.
 
+### 13. Precarga del Service Worker sin la caché HTTP
+GitHub Pages sirve todos los archivos con `Cache-Control: max-age=600`. Al instalarse una versión nueva del Service Worker, `cache.addAll(SHELL_FILES)` puede recibir del navegador la **copia antigua** de un archivo durante esos 10 minutos y guardarla bajo la versión nueva. Así pasó en el móvil con `ui.js`, que seguía mostrando el producto de ejemplo. Esa mezcla dura hasta el siguiente despliegue.
+- La precarga pide cada archivo con `new Request(url, { cache: 'reload' })`, que va siempre a la red y actualiza la caché HTTP.
+- El propio `sw.js` no tiene este problema: el navegador comprueba sus actualizaciones saltándose la caché HTTP (`updateViaCache` por defecto).
+- No cambia ningún requisito: hace que se cumpla el de `pwa-shell` "Actualización del shell entre versiones".
+- Se prueba en Node cargando `sw.js` con `node:vm` y un entorno simulado (`tests/sw.test.js`).
+
 ### 12. Estrategia de pruebas (TDD)
 - **Node (`npm test`):** `filtrarPorEstado` en `tests/productos.test.js`, y `formatearFecha`/`formatearCantidad` en `tests/formato.test.js` (nuevo).
 - **Runner:** hoy `antesDeCada` es un único gancho global, y el último que se registra sustituye a los anteriores. Con dos archivos de pruebas, el gancho pasa a aplicarse **a las pruebas registradas después de llamarlo** (cada prueba guarda el gancho vigente al registrarse). Así cada archivo tiene el suyo, sin cambiar `storage.test.js`.

@@ -52,6 +52,13 @@ Desarrollo con TDD (design.md §12): en cada bloque, primero las pruebas en **ro
 - [x] 10.2 (Manual, en el PC) Con la app en `localhost` y productos creados desde la consola (`const s = await import('./js/storage.js'); await s.crearProducto({ nombre: 'Leche entera', fechaCaducidad: '<fecha>' })` con fechas pasadas, de hoy, de 3, 6 y 12 días): comprobar el aspecto frente al mockup, las tres pestañas, los colores, el recorrido tocando Listado → producto → Detalle → "Editar" → Editar, la flecha de volver y que el filtro se conserva; después, en DevTools en *Offline*, recargar y comprobar que el listado se sigue viendo
 - [ ] 10.3 (Manual, en el móvil, tras desplegar) Con la app instalada en Android o iOS: el listado vacío se ve bien ("Todavía no hay productos", "+" accesible, sin solaparse con la barra inferior ni con el notch) y abre sin conexión
 
+## 11. Service Worker sin copias antiguas de la caché HTTP
+
+Añadido durante la verificación en el móvil (design.md §13): tras desplegar, el móvil seguía mostrando el producto de ejemplo.
+
+- [x] 11.1 Rojo: crear `tests/sw.test.js`, que carga `src/sw.js` en Node con `node:vm` y un entorno simulado (`self`, `caches`, `Request`), lanza `install` y comprueba que se piden todos los archivos de `SHELL_FILES` y que cada petición lleva `cache: 'reload'`; verificar que `npm test` falla
+- [x] 11.2 Verde: en `src/sw.js`, precargar con `cache.addAll(SHELL_FILES.map((url) => new Request(url, { cache: 'reload' })))`; verificar que `npm test` pasa, y tras desplegar, que el móvil muestra la versión nueva al reabrir la app (se comprueba en la 10.3)
+
 ## Workflow follow-up
 
 - Archivar el cambio (`/opsx:archive`) cuando esté implementado y verificado, para crear la spec principal `product-list` y actualizar `app-navigation`.
