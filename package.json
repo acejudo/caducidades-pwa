@@ -1,0 +1,10 @@
+{
+  "name": "caducidades-pwa",
+  "private": true,
+  "type": "module",
+  "description": "PWA privada para controlar las fechas de caducidad de los alimentos. Sin dependencias: este archivo solo define los comandos de pruebas.",
+  "scripts": {
+    "test": "node --test \"tests/*.test.js\"",
+    "test:navegador": "node scripts/probar-navegador.mjs"
+  }
+}

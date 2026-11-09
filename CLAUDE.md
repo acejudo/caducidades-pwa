@@ -39,5 +39,3 @@ Herramientas, todas **sin dependencias** (no añadir Jest, Vitest, Puppeteer, `f
 - Lo que no se puede automatizar (Service Worker real, login con Google real, móvil instalado) se deja como tarea manual explícita.
 
 Antes de dar una tarea por terminada: `npm test` y `npm run test:navegador` en verde.
-
-> Nota: la infraestructura de pruebas (`package.json`, `tests/` y `scripts/probar-navegador.mjs`) la introduce el cambio `modelo-y-almacenamiento`. Hasta que se aplique, esos comandos no existen.

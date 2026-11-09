@@ -45,21 +45,26 @@ No se publicará en ninguna tienda de aplicaciones.
 
 ```json
 {
-  "id": "string (uuid o timestamp)",
-  "nombre": "string (obligatorio)",
+  "id": "string (UUID generado por la app; no cambia nunca)",
+  "nombre": "string (obligatorio, 1-100 caracteres)",
   "fechaCompra": "string | null (YYYY-MM-DD, opcional)",
   "fechaCaducidad": "string (YYYY-MM-DD, obligatorio)",
-  "cantidad": "number",
+  "cantidad": "number (> 0, admite decimales)",
   "unidad": "string (ud, pack, kg, etc.)",
   "categoria": "string (Nevera | Congelador | Despensa | Otros)",
   "foto": {
     "tipo": "predeterminada | real | ninguna",
-    "valor": "string (id de foto predeterminada o nombre de archivo en Drive)"
+    "valor": "string | null (id de foto predeterminada o nombre de archivo en Drive; null si no hay foto)"
   },
   "notas": "string | null (opcional)",
-  "actualizado": "string (ISO 8601 timestamp)"
+  "eliminado": "boolean (marca de borrado; los eliminados no se muestran)",
+  "actualizado": "string (ISO 8601 en UTC; se renueva en cada alta, edición y baja)"
 }
 ```
+
+**Valores por defecto** al crear un producto (si no se indican): `fechaCompra: null`, `cantidad: 1`, `unidad: "ud"`, `categoria: "Nevera"`, `foto: { "tipo": "ninguna", "valor": null }`, `notas: null`. Los textos se guardan sin espacios al principio ni al final, y un texto opcional vacío se guarda como `null`.
+
+**Bajas:** eliminar un producto no borra su registro, sino que lo marca con `eliminado: true` y un `actualizado` nuevo. Así la sincronización (§7) propaga la baja a los demás dispositivos en lugar de volver a subir el producto borrado.
 
 ### 4.2 Archivo de sincronización en Google Drive
 

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pruebas de navegador – Caducidades</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 16px; color: #111827; background: #fff; }
+    #resultado { display: block; font-weight: 600; margin: 8px 0 16px; }
+    #resultado[data-estado="ok"] { color: #15803D; }
+    #resultado[data-estado="fallo"] { color: #B91C1C; }
+    ul { list-style: none; padding: 0; }
+    li { padding: 4px 0; font-family: ui-monospace, monospace; font-size: 14px; }
+    .ok { color: #15803D; }
+    .fallo { color: #B91C1C; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>Pruebas de navegador</h1>
+  <p>Usan la base de datos <code>caducidades-pruebas</code>; no tocan los datos reales.</p>
+  <output id="resultado">Ejecutando…</output>
+  <ul id="lista"></ul>
+
+  <script type="module">
+    import { ejecutar } from './runner.js';
+    const resultado = document.getElementById('resultado');
+    try {
+      await import('./storage.test.js');
+      await ejecutar();
+    } catch (error) {
+      // Un fallo al cargar las pruebas (p. ej. un módulo que no existe) también es un fallo.
+      resultado.dataset.estado = 'fallo';
+      resultado.textContent = `Error al cargar las pruebas: ${error?.message ?? error}`;
+      console.error(error);
+    }
+
+    // Abierta por scripts/probar-navegador.mjs: envía el resultado a su servidor local.
+    if (new URLSearchParams(location.search).has('informar')) {
+      const filas = [...document.querySelectorAll('#lista li')].map((li) => li.textContent);
+      await fetch('/__resultado', {
+        method: 'POST',
+        body: JSON.stringify({ estado: resultado.dataset.estado, resumen: resultado.textContent, filas }),
+      });
+    }
+  </script>
+</body>
+</html>

@@ -26,6 +26,23 @@ Mientras desarrollas, marca *Update on reload* en DevTools → *Application → 
 
 **Si regeneras `config.local.js`**, el Service Worker puede seguir sirviendo la versión anterior desde su caché (Google responde entonces `Error 401: invalid_client`). Borra la caché en DevTools → *Application → Storage → Clear site data* y recarga.
 
+## Pruebas
+
+El proyecto se desarrolla con TDD: primero la prueba que falla y después el código. Las pruebas están en `tests/` y no usan dependencias. No hace falta `npm install` ni `config.local.js`.
+
+```bash
+npm test                 # lógica pura (tests/*.test.js) con node --test
+npm run test:navegador   # código que necesita el navegador (IndexedDB), en Chrome o Edge headless
+```
+
+- **Requisitos:** Node 22 o superior, y Chrome o Edge instalado para `test:navegador`. Si el script no encuentra el navegador, indica su ruta en la variable `CHROME` (PowerShell: `$env:CHROME = "C:\ruta\a\chrome.exe"`).
+- **A mano en el navegador:** sirve la **raíz** del repo (no `src/`) con `python -m http.server 8080` y abre <http://localhost:8080/tests/navegador/>. La página muestra cada prueba y el resumen.
+- Las pruebas de navegador usan la base de datos IndexedDB `caducidades-pruebas`, nunca `caducidades`, así que no tocan los productos de tu app en local.
+
+## Datos en el dispositivo
+
+Los productos se guardan en IndexedDB (base de datos `caducidades`), así que la app funciona sin conexión. Son una lista común a todas las personas autorizadas, y cerrar sesión no los borra. **Usa la app instalada en la pantalla de inicio**: Safari puede borrar los datos de las webs que no se visitan en 7 días, pero no los de las apps instaladas. Cuando llegue la sincronización, Drive será además la copia de seguridad.
+
 ## Estructura
 
 Solo `src/` se publica en GitHub Pages; el resto es documentación y herramientas.
@@ -40,10 +57,12 @@ src/                    # la app (lo que se publica)
   js/router.js          # router por hash (#/listado, #/producto/:id…)
   js/ui.js              # cabecera, navegación y pantallas
   js/auth.js            # Google Sign-In restringido: sesión, token y lista blanca
-  js/config.js          # constantes (Drive, urgencia, categorías…)
+  js/config.js          # configuración (Drive) y reexporta constantes y config.local.js
+  js/constantes.js      # urgencia y categorías (sin datos sensibles)
+  js/productos.js       # modelo de producto: validación, días restantes, urgencia y orden
   js/config.local.js          # (no está en git) Client ID y hashes de los emails
   js/config.local.example.js  # plantilla de config.local.js
-  js/storage.js         # (pendiente) almacenamiento local y sincronización
+  js/storage.js         # almacenamiento local de productos en IndexedDB (sin conexión)
   js/drive.js           # (pendiente) Google Drive API
   js/utils.js           # utilidades de DOM
   img/icons/            # icono de la app (icon.svg es el origen de los PNG)
@@ -53,7 +72,10 @@ docs/
   DESIGN.md             # guía de diseño
   design/               # mockups de referencia
 openspec/               # specs y cambios (OpenSpec)
+tests/                  # pruebas (TDD): *.test.js con node --test y navegador/ con IndexedDB
+package.json            # solo los comandos npm test y npm run test:navegador (sin dependencias)
 scripts/generar-config-local.mjs  # genera src/js/config.local.js
+scripts/probar-navegador.mjs      # ejecuta las pruebas de navegador en Chrome/Edge headless
 .github/workflows/pages.yml       # despliegue en GitHub Pages
 ```
 

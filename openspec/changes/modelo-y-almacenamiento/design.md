@@ -108,9 +108,9 @@ Los productos son una única lista compartida por todas las personas autorizadas
 - "Navegador sin almacenamiento" se prueba sustituyendo temporalmente `indexedDB.open` por una función que falla. "Reapertura" se prueba cerrando la conexión (`usarBaseDeDatos` con el mismo nombre) y volviendo a leer.
 - El runner deja el resultado en el DOM (`<output id="resultado" data-estado="ok|fallo">N pruebas, M fallos</output>`), legible por una persona y por un script.
 - **A mano:** `python -m http.server 8080` desde la raíz del repo y abrir `http://localhost:8080/tests/navegador/`.
-- **Automático:** `npm run test:navegador` ejecuta `scripts/probar-navegador.mjs` (Node, sin dependencias). Sirve la raíz del repo con `node:http` en un puerto libre, lanza Chrome o Edge *headless* con `--dump-dom` y `--virtual-time-budget`, lee `#resultado` y sale con código 0 o 1. La ruta del navegador se toma de la variable `CHROME` o de las rutas habituales de Windows, macOS y Linux.
+- **Automático:** `npm run test:navegador` ejecuta `scripts/probar-navegador.mjs` (Node, sin dependencias). Sirve la raíz del repo con `node:http` en un puerto libre, lanza Chrome o Edge *headless* con un perfil temporal abriendo `tests/navegador/?informar=1`; con ese parámetro la página envía su resultado (`estado`, resumen y una línea por prueba) por `POST /__resultado` al propio servidor, y el script lo muestra y sale con código 0 o 1. Se descartó `--dump-dom` con `--virtual-time-budget`: el tiempo virtual adelanta los temporizadores (incluido el límite de 5 s por prueba del runner) mientras IndexedDB trabaja en tiempo real, lo que daría fallos falsos. La ruta del navegador se toma de la variable `CHROME` o de las rutas habituales de Windows, macOS y Linux.
 
-**`package.json`** (raíz, `"private": true`, `"type": "module"`, **sin dependencias**): scripts `test` (`node --test tests/`) y `test:navegador`. Solo sirve como atajo de comandos. No forma parte de lo publicado, porque Pages solo publica `src/`.
+**`package.json`** (raíz, `"private": true`, `"type": "module"`, **sin dependencias**): scripts `test` (`node --test "tests/*.test.js"`: el glob lo interpreta Node, funciona igual en Windows y solo toma el primer nivel, para no ejecutar en Node las pruebas de `tests/navegador/`) y `test:navegador`. Solo sirve como atajo de comandos. No forma parte de lo publicado, porque Pages solo publica `src/`.
 
 **Lo que no se automatiza:** que el Service Worker cachee los archivos nuevos y el uso real en el móvil instalado se comprueban a mano (tareas finales).
 
@@ -121,7 +121,7 @@ Los productos son una única lista compartida por todas las personas autorizadas
 - [La validación está solo en el cliente] → No hay servidor. El cambio de Drive deberá validar con `validarProducto` los productos que descargue antes de guardarlos.
 - [Reloj del dispositivo incorrecto] → Afecta a *last-write-wins* entre dispositivos. Es aceptable para un grupo reducido de personas (SPEC §7). Dentro del mismo dispositivo lo mitiga la Decisión 8.
 - [Las pruebas de navegador automáticas dependen de tener Chrome o Edge instalado] → La misma página se puede abrir a mano en cualquier navegador. El script indica cómo fijar la ruta con `CHROME` si no lo encuentra.
-- [`--dump-dom` termina antes de que acaben las pruebas asíncronas] → `--virtual-time-budget` da tiempo suficiente. Si el resultado no aparece, el script lo trata como fallo, nunca como éxito.
+- [La página no llega a enviar el resultado (error de carga, cuelgue)] → Un error al cargar las pruebas también se informa como fallo, cada prueba tiene un límite de 5 s y el script espera como máximo 60 s. Si no llega resultado, lo trata como fallo, nunca como éxito.
 - [Una prueba del navegador olvida volver a la base de datos de pruebas y toca la real] → `antesDeCada` fija siempre `caducidades-pruebas`, y la página de pruebas nunca carga `app.js`.
 
 ## Migration Plan

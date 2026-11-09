@@ -19,6 +19,8 @@ const SHELL_FILES = [
   './js/ui.js',
   './js/utils.js',
   './js/config.js',
+  './js/constantes.js',
+  './js/productos.js',
   './js/config.local.js',
   './js/auth.js',
   './js/storage.js',
