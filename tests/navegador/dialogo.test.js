@@ -71,3 +71,33 @@ prueba('el diálogo desaparece del DOM al cerrarse', async () => {
   await respuesta;
   igual(abierto(), null);
 });
+
+// Con los estilos reales de la app (su reset pone margin: 0 a todo).
+async function cargarEstilosApp() {
+  if (document.querySelector('link[data-estilos-app]')) return;
+  const enlace = document.createElement('link');
+  enlace.rel = 'stylesheet';
+  enlace.href = '../../src/css/styles.css';
+  enlace.dataset.estilosApp = '';
+  const cargado = new Promise((resolver, rechazar) => { enlace.onload = resolver; enlace.onerror = rechazar; });
+  document.head.append(enlace);
+  await cargado;
+}
+
+prueba('el diálogo sale centrado en la pantalla', async () => {
+  await cargarEstilosApp();
+  const respuesta = dialogo.confirmar(OPCIONES);
+  try {
+    const caja = abierto().getBoundingClientRect();
+    const margenIzquierdo = caja.left;
+    const margenDerecho = document.documentElement.clientWidth - caja.right; // sin la barra de desplazamiento
+    const margenSuperior = caja.top;
+    const margenInferior = document.documentElement.clientHeight - caja.bottom;
+    verdadero(Math.abs(margenIzquierdo - margenDerecho) <= 2, `horizontal: ${margenIzquierdo} frente a ${margenDerecho}`);
+    verdadero(Math.abs(margenSuperior - margenInferior) <= 2, `vertical: ${margenSuperior} frente a ${margenInferior}`);
+  } finally {
+    // Un diálogo modal abierto deja inerte la página y haría fallar las pruebas siguientes.
+    boton('Cancelar').click();
+    await respuesta;
+  }
+});

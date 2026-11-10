@@ -266,7 +266,8 @@ prueba('Guardar sin obligatorios', async () => {
     igual(control(raiz, campo).getAttribute('aria-invalid'), 'true', campo);
     igual(control(raiz, campo).getAttribute('aria-describedby'), `error-${campo}`, campo);
   }
-  igual(document.activeElement, control(raiz, 'nombre'), 'el foco va a Nombre');
+  const enfocado = document.activeElement;
+  igual(`${enfocado?.tagName}[${enfocado?.name ?? enfocado?.className}]`, 'INPUT[nombre]', 'el foco va a Nombre');
   igual(visible(errorDe(raiz, 'fechaCompra')), false);
   igual((await storage.listarProductos()).length, 0, 'no se guarda nada');
   igual(navegaciones.length, 0, 'no se navega');

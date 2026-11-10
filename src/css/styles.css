@@ -669,6 +669,9 @@ textarea.campo__control {
 /* ---------- Diálogo de confirmación ---------- */
 
 .dialogo {
+  /* El reset pone margin: 0 a todo; el navegador centra los <dialog> modales con
+     margin: auto, así que hay que devolvérselo. */
+  margin: auto;
   width: calc(100% - 2 * var(--espacio-4));
   max-width: 400px;
   padding: var(--espacio-5);

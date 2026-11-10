@@ -48,6 +48,12 @@ Desarrollo con TDD (design.md §11): en cada bloque, primero las pruebas en **ro
 - [x] 9.2 (Manual, en el PC) Crear, editar y eliminar desde la interfaz; probar el teclado (Tab por todos los campos, Enter en el diálogo no borra, Escape lo cierra), los mensajes de error y Cancelar con y sin cambios; en DevTools en *Offline*, crear un producto y comprobar que aparece en el Listado
 - [ ] 9.3 (Manual, en el móvil, tras desplegar) Con la app instalada: los selectores de fecha nativos, el teclado decimal en la cantidad, el diálogo de eliminar y el aspecto frente al mockup. **Prueba de persistencia pendiente de `modelo-y-almacenamiento` (tarea 10.2):** crear un producto, cerrar la app del todo, activar el modo avión, abrirla y comprobar que el producto sigue en el Listado
 
+## 10. Corrección tras la prueba en el móvil
+
+En el móvil, el diálogo "¿Descartar los cambios?" salía pegado arriba a la izquierda (design.md §6).
+
+- [x] 10.1 Rojo: prueba "el diálogo sale centrado en la pantalla" en `tests/navegador/dialogo.test.js`, que carga los estilos reales de la app y mide los márgenes (fallaba: 0 px a la izquierda frente a 364 a la derecha). Verde: `margin: auto` en `.dialogo`, porque el reset `* { margin: 0 }` anulaba el centrado nativo de los `<dialog>` modales. La prueba cierra siempre el diálogo (`finally`), porque si se queda abierto deja inerte la página y hace fallar las siguientes. 73 pruebas en verde en 5 ejecuciones seguidas
+
 ## Workflow follow-up
 
 - Archivar el cambio (`/opsx:archive`) cuando esté implementado y verificado, para crear la spec principal `product-form`.

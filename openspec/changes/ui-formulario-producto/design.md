@@ -71,6 +71,7 @@ Al terminar `cargado` se guarda una "foto" de los valores iniciales (`JSON.strin
 - Textos: con `peligro: true`, el botón de acción es `.btn--peligro`.
   - Eliminar: "¿Eliminar «<nombre>»?" / "Dejará de aparecer en la lista." / "Eliminar" / "Cancelar".
   - Descartar: "¿Descartar los cambios?" / "Lo que has escrito no se guardará." / "Descartar" / "Seguir editando".
+- **Centrado:** el reset de `styles.css` (`* { margin: 0 }`) anula el `margin: auto` con el que el navegador centra los `<dialog>` modales. `.dialogo` lo restablece. Se descubrió en el móvil (tarea 10.1).
 - *Alternativa descartada:* `window.confirm()`. No se puede dar estilo, muestra el dominio en el título y en el modo instalado de iOS tiene un aspecto poco integrado.
 
 ### 7. Borrador al ir a Elegir foto
