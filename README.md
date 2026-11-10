@@ -81,6 +81,7 @@ tests/                  # pruebas (TDD): *.test.js con node --test y navegador/ 
 package.json            # solo los comandos npm test y npm run test:navegador (sin dependencias)
 scripts/generar-config-local.mjs  # genera src/js/config.local.js
 scripts/probar-navegador.mjs      # ejecuta las pruebas de navegador en Chrome/Edge headless
+scripts/captura-app.mjs           # captura la app a tamaño móvil con sesión simulada (ver CLAUDE.md)
 .github/workflows/pages.yml       # despliegue en GitHub Pages
 ```
 
