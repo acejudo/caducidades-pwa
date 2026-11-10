@@ -46,7 +46,7 @@ Desarrollo con TDD (design.md §11): en cada bloque, primero las pruebas en **ro
 
 - [x] 9.1 Ejecutar `npm test` y `npm run test:navegador` (todo en verde, y cada escenario de `product-form` tiene una prueba con su nombre), `openspec validate ui-formulario-producto --strict` y, en la app real con sesión, el recorrido Listado → "+" → rellenar → Guardar → aparece en el Listado → abrir → Editar → cambiar → Guardar → Editar → Eliminar → confirmar, sin errores en la consola
 - [x] 9.2 (Manual, en el PC) Crear, editar y eliminar desde la interfaz; probar el teclado (Tab por todos los campos, Enter en el diálogo no borra, Escape lo cierra), los mensajes de error y Cancelar con y sin cambios; en DevTools en *Offline*, crear un producto y comprobar que aparece en el Listado
-- [ ] 9.3 (Manual, en el móvil, tras desplegar) Con la app instalada: los selectores de fecha nativos, el teclado decimal en la cantidad, el diálogo de eliminar y el aspecto frente al mockup. **Prueba de persistencia pendiente de `modelo-y-almacenamiento` (tarea 10.2):** crear un producto, cerrar la app del todo, activar el modo avión, abrirla y comprobar que el producto sigue en el Listado
+- [x] 9.3 (Manual, en el móvil, tras desplegar) Con la app instalada: los selectores de fecha nativos, el teclado decimal en la cantidad, el diálogo de eliminar y el aspecto frente al mockup. **Prueba de persistencia pendiente de `modelo-y-almacenamiento` (tarea 10.2):** crear un producto, cerrar la app del todo, activar el modo avión, abrirla y comprobar que el producto sigue en el Listado
 
 ## 10. Corrección tras la prueba en el móvil
 
