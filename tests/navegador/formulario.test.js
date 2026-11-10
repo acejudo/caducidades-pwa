@@ -9,6 +9,9 @@ const formulario = await import('../../src/js/formulario.js').catch((error) => {
   return {};
 });
 
+const borradores = await import('../../src/js/borradores.js').catch(() => ({}));
+const fotos = await import('../../src/js/fotos.js').catch(() => ({}));
+
 const BD_PRUEBAS = 'caducidades-pruebas';
 const CAMPOS = ['nombre', 'fechaCompra', 'fechaCaducidad', 'cantidad', 'categoria', 'notas'];
 
@@ -112,7 +115,7 @@ prueba('Formulario de alta vacío', async () => {
   igualProfundo(campos, CAMPOS, 'orden de los campos');
   const foto = raiz.querySelector('a.zona-foto');
   verdadero(foto, 'falta la zona de foto');
-  igual(foto.getAttribute('href'), '#/elegir-foto');
+  igual(foto.getAttribute('href'), '#/producto/nuevo/foto');
   verdadero(foto.compareDocumentPosition(raiz.querySelector('.campo')) & Node.DOCUMENT_POSITION_FOLLOWING, 'la foto va primero');
   igualProfundo(
     ['nombre', 'fechaCompra', 'fechaCaducidad', 'notas', 'cantidad', 'unidad', 'categoria'].map((n) => control(raiz, n).value),
@@ -444,4 +447,90 @@ prueba('un borrador del alta no aparece en la edición', async () => {
   alta.querySelector('a.zona-foto').click();
   const raiz = await montar({ id: p.id });
   igual(control(raiz, 'nombre').value, 'Salmón ahumado');
+});
+
+// ---------- Foto ----------
+
+const zonaFoto = (raiz) => raiz.querySelector('a.zona-foto');
+const imagenDeZona = (raiz) => zonaFoto(raiz).querySelector('img');
+const conFoto = (valor) => ({ tipo: 'predeterminada', valor });
+const SIN_FOTO = Object.freeze({ tipo: 'ninguna', valor: null });
+
+prueba('Alta sin foto', async () => {
+  const raiz = await montar();
+  igual(imagenDeZona(raiz), null, 'sin imagen');
+  verdadero(zonaFoto(raiz).querySelector('svg'), 'falta el icono de cámara');
+  verdadero(zonaFoto(raiz).textContent.includes('Toca para elegir foto'));
+  igual(zonaFoto(raiz).getAttribute('href'), '#/producto/nuevo/foto');
+});
+
+prueba('Edición con foto', async () => {
+  const p = await storage.crearProducto({ ...COMPLETO, foto: conFoto('yogur') });
+  const raiz = await montar({ id: p.id });
+  igual(imagenDeZona(raiz)?.getAttribute('src'), fotos.urlFoto?.('yogur'));
+  verdadero(zonaFoto(raiz).textContent.includes('Yogur'), 'falta el nombre de la foto');
+  igual(zonaFoto(raiz).getAttribute('href'), `#/producto/${encodeURIComponent(p.id)}/editar/foto`);
+});
+
+prueba('Alta con foto', async () => {
+  borradores.guardarBorrador('nuevo', { foto: conFoto('yogur') });
+  const raiz = await montar();
+  igual(imagenDeZona(raiz)?.getAttribute('src'), fotos.urlFoto?.('yogur'), 'muestra la foto elegida');
+  escribir(raiz, 'nombre', 'Yogur griego');
+  escribir(raiz, 'fechaCaducidad', dentroDe(5));
+  guardar(raiz).click();
+  await esperarA(() => navegaciones.length > 0);
+  const [p] = await storage.listarProductos();
+  igualProfundo(p.foto, conFoto('yogur'));
+});
+
+prueba('Cambiar la foto en la edición', async () => {
+  const p = await storage.crearProducto({ ...COMPLETO, foto: conFoto('leche') });
+  borradores.guardarBorrador(`editar:${p.id}`, { foto: { ...SIN_FOTO } });
+  const raiz = await montar({ id: p.id });
+  igual(imagenDeZona(raiz), null, 'la zona queda sin foto');
+  guardar(raiz).click();
+  await esperarA(() => navegaciones.length > 0);
+  igualProfundo((await storage.obtenerProducto(p.id)).foto, SIN_FOTO);
+});
+
+prueba('Edición sin tocar la foto', async () => {
+  const p = await storage.crearProducto({ ...COMPLETO, foto: conFoto('leche') });
+  const raiz = await montar({ id: p.id });
+  escribir(raiz, 'nombre', 'Leche sin lactosa');
+  guardar(raiz).click();
+  await esperarA(() => navegaciones.length > 0);
+  const guardado = await storage.obtenerProducto(p.id);
+  igual(guardado.nombre, 'Leche sin lactosa');
+  igualProfundo(guardado.foto, conFoto('leche'));
+});
+
+prueba('Cancelar tras cambiar la foto', async () => {
+  const p = await storage.crearProducto({ ...COMPLETO, foto: conFoto('leche') });
+  borradores.guardarBorrador(`editar:${p.id}`, { foto: conFoto('queso') });
+  const raiz = await montar({ id: p.id });
+  respuestaConfirmar = false;
+  boton(raiz, 'Cancelar').click();
+  await esperarA(() => confirmaciones.length > 0);
+  igual(confirmaciones[0].titulo, '¿Descartar los cambios?');
+});
+
+prueba('Volver sin elegir conserva la foto', async () => {
+  borradores.guardarBorrador('nuevo', { foto: conFoto('queso') });
+  let raiz = await montar();
+  zonaFoto(raiz).click();
+  igualProfundo(borradores.leerBorrador('nuevo')?.foto, conFoto('queso'), 'el borrador guarda la foto');
+  raiz = await montar(); // vuelve con la flecha sin elegir nada
+  igual(imagenDeZona(raiz)?.getAttribute('src'), fotos.urlFoto?.('queso'));
+});
+
+prueba('Borrador descartado al guardar: también sin foto', async () => {
+  borradores.guardarBorrador('nuevo', { foto: conFoto('pan') });
+  let raiz = await montar();
+  escribir(raiz, 'nombre', 'Pan');
+  escribir(raiz, 'fechaCaducidad', dentroDe(2));
+  guardar(raiz).click();
+  await esperarA(() => navegaciones.length > 0);
+  raiz = await montar();
+  igual(imagenDeZona(raiz), null, 'el alta vuelve sin foto');
 });

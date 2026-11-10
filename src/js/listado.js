@@ -2,10 +2,13 @@
 // Spec: openspec/specs/product-list. No importa ui.js, auth.js ni config.js, para poder
 // probarse sin config.local.js (tests/navegador/listado.test.js).
 
-import { listarProductos } from './storage.js';
+import { listarProductos, eliminarProducto } from './storage.js';
 import { diasRestantes, nivelUrgencia, textoCaducidad, filtrarPorEstado, FILTROS } from './productos.js';
 import { formatearFecha, formatearCantidad } from './formato.js';
+import { fotoDeProducto } from './fotos.js';
 import { ICONOS } from './iconos.js';
+import { activarDeslizar } from './deslizar.js';
+import { confirmar as confirmarDialogo } from './dialogo.js';
 import { el, icono, vaciar } from './utils.js';
 
 // Último filtro elegido: se conserva al navegar dentro de la app y vuelve a "Todas" al
@@ -30,27 +33,51 @@ function estadoVacio(titulo, texto = null) {
   );
 }
 
-function tarjeta(producto, hoy) {
+// La imagen del catálogo o, si no hay ninguna que mostrar, el icono genérico. La imagen
+// es decorativa: el nombre del producto va al lado.
+function fotoDeTarjeta(producto) {
+  const foto = fotoDeProducto(producto);
+  return foto
+    ? el('img', { src: foto.url, alt: '', width: 48, height: 48 })
+    : icono(ICONOS.producto);
+}
+
+// Cada tarjeta va dentro de un contenedor deslizable con el botón Eliminar detrás. El
+// botón solo se alcanza con el gesto (tabindex -1, oculto a los lectores de pantalla):
+// el Detalle ofrece la misma acción por teclado (design.md §8).
+function tarjeta(producto, hoy, alEliminar) {
   const dias = diasRestantes(producto.fechaCaducidad, hoy);
-  return el('li', {},
+  return el('li', {}, el('div', { class: 'tarjeta-deslizable' },
+    el('button', {
+      type: 'button',
+      class: 'tarjeta__eliminar',
+      tabindex: '-1',
+      'aria-hidden': 'true',
+      onClick: () => alEliminar(producto),
+    }, icono(ICONOS.eliminar), el('span', { text: 'Eliminar' })),
     el('a', {
       href: `#/producto/${encodeURIComponent(producto.id)}`,
       class: `tarjeta tarjeta--producto urgencia--${nivelUrgencia(dias)}`,
     },
-    el('span', { class: 'tarjeta__foto' }, icono(ICONOS.producto)),
+    el('span', { class: 'tarjeta__foto' }, fotoDeTarjeta(producto)),
     el('span', { class: 'tarjeta__cuerpo' },
       el('span', { class: 'tarjeta__nombre', text: producto.nombre }),
       el('span', { class: 'tarjeta__caducidad', text: `Caduca el ${formatearFecha(producto.fechaCaducidad)}` }),
       el('span', { class: 'badge', text: textoCaducidad(dias) }),
       el('span', { class: 'tarjeta__cantidad', text: `Cantidad: ${formatearCantidad(producto.cantidad, producto.unidad)}` }),
-    )),
+    ))),
   );
 }
 
 // Crea la pantalla. Devuelve { elemento, cargado }: `elemento` se entrega al router de
 // inmediato y se rellena al leer los productos; `cargado` es la promesa de esa primera
-// lectura (la usan las pruebas). `listar` y `hoy` se pueden sustituir en las pruebas.
-export function crearPantallaListado({ listar = listarProductos, hoy = () => new Date() } = {}) {
+// lectura (la usan las pruebas). Las dependencias se pueden sustituir en las pruebas.
+export function crearPantallaListado({
+  listar = listarProductos,
+  hoy = () => new Date(),
+  eliminar = eliminarProducto,
+  confirmar = confirmarDialogo,
+} = {}) {
   const pestanas = FILTROS.map(({ clave, texto }) => el('button', {
     type: 'button',
     role: 'tab',
@@ -62,14 +89,42 @@ export function crearPantallaListado({ listar = listarProductos, hoy = () => new
   }));
   const barraFiltros = el('div', { class: 'pestanas', role: 'tablist', 'aria-label': 'Filtrar productos' }, pestanas);
   const contenido = el('div', { id: 'listado-panel', class: 'listado__contenido', role: 'tabpanel', 'aria-busy': 'true' });
+  const aviso = el('p', { class: 'listado__aviso', role: 'alert', hidden: true });
   const elemento = el('section', { class: 'listado' },
     barraFiltros,
+    aviso,
     contenido,
     el('a', { href: '#/producto/nuevo', class: 'fab', 'aria-label': 'Añadir producto' }, icono(ICONOS.mas)),
   );
 
   let productos = [];
   let estado = 'cargando'; // 'cargando' | 'listo' | 'error'
+  const deslizador = activarDeslizar(contenido);
+
+  // Eliminar desde una tarjeta abierta: confirmar y quitarla de la lista sin salir.
+  async function eliminarDesdeLista(producto) {
+    const eliminarlo = await confirmar({
+      titulo: `¿Eliminar «${producto.nombre}»?`,
+      mensaje: 'Dejará de aparecer en la lista.',
+      aceptar: 'Eliminar',
+      peligro: true,
+    });
+    if (!eliminarlo) {
+      deslizador.cerrar();
+      return;
+    }
+    try {
+      await eliminar(producto.id);
+      aviso.hidden = true;
+      productos = productos.filter((p) => p.id !== producto.id);
+      pintar();
+    } catch (error) {
+      console.error('No se pudo eliminar el producto:', error);
+      aviso.textContent = 'No se pudo eliminar el producto. Inténtalo de nuevo.';
+      aviso.hidden = false;
+      deslizador.cerrar();
+    }
+  }
 
   function marcarPestanas() {
     FILTROS.forEach(({ clave }, i) => {
@@ -99,7 +154,7 @@ export function crearPantallaListado({ listar = listarProductos, hoy = () => new
     const visibles = filtrarPorEstado(productos, filtroActivo, ahora);
     contenido.append(visibles.length === 0
       ? estadoVacio(SIN_RESULTADOS[filtroActivo])
-      : el('ul', { class: 'lista-productos' }, visibles.map((producto) => tarjeta(producto, ahora))));
+      : el('ul', { class: 'lista-productos' }, visibles.map((producto) => tarjeta(producto, ahora, eliminarDesdeLista))));
   }
 
   function pintarError() {

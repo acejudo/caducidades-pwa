@@ -51,3 +51,11 @@ test('la precarga no usa copias antiguas de la caché HTTP', async () => {
     assert.equal(p.cache, 'reload', p.url);
   }
 });
+
+test('las fotos predeterminadas están en el shell', async () => {
+  const { FOTOS_PREDETERMINADAS } = await import('../src/js/fotos.js');
+  const { shell } = await instalar();
+  for (const { id } of FOTOS_PREDETERMINADAS) {
+    assert.ok(shell.includes(`./img/predeterminadas/${id}.svg`), `falta ${id}.svg en SHELL_FILES`);
+  }
+});

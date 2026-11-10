@@ -31,9 +31,12 @@ async function arrancar() {
   registrar('/login', { titulo: 'Caducidades', mostrarNav: false, mostrarCabecera: false, render: pantallas.login });
   registrar('/listado', { titulo: 'Caducidades', mostrarNav: true, render: pantallas.listado });
   registrar('/producto/nuevo', { titulo: 'Nuevo producto', mostrarNav: false, padre: '/listado', render: pantallas.nuevo });
+  // Elegir foto tiene una ruta por formulario de origen: sabe a cuál devolver la foto y
+  // ese formulario es su padre (design.md §4).
+  registrar('/producto/nuevo/foto', { titulo: 'Elegir foto', mostrarNav: false, padre: '/producto/nuevo', render: pantallas.elegirFoto });
+  registrar('/producto/:id/editar/foto', { titulo: 'Elegir foto', mostrarNav: false, padre: '/producto/:id/editar', render: pantallas.elegirFoto });
   registrar('/producto/:id/editar', { titulo: 'Editar producto', mostrarNav: false, padre: '/producto/:id', render: pantallas.editar });
-  registrar('/producto/:id', { titulo: 'Detalle', mostrarNav: false, padre: '/listado', render: pantallas.detalle });
-  registrar('/elegir-foto', { titulo: 'Elegir foto', mostrarNav: false, padre: '/listado', render: pantallas.elegirFoto });
+  registrar('/producto/:id', { titulo: 'Detalle del producto', mostrarNav: false, padre: '/listado', render: pantallas.detalle });
   registrar('/ajustes', { titulo: 'Ajustes', mostrarNav: true, render: pantallas.ajustes });
 
   await revalidarSesion();

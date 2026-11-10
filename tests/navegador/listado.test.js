@@ -10,6 +10,8 @@ const listado = await import('../../src/js/listado.js').catch((error) => {
   return {};
 });
 
+const fotos = await import('../../src/js/fotos.js').catch(() => ({}));
+
 const BD_PRUEBAS = 'caducidades-pruebas';
 const HOY_FIJO = new Date(2026, 10, 17, 10, 0); // 17 nov 2026, hora local
 
@@ -89,6 +91,21 @@ prueba('Producto sin foto', async () => {
   verdadero(foto, 'falta la zona de foto');
   verdadero(foto.querySelector('svg'), 'falta el icono genérico');
   igual(foto.querySelector('img'), null);
+});
+
+prueba('Producto con foto predeterminada', async () => {
+  await storage.crearProducto({ nombre: 'Leche', fechaCaducidad: dentroDe(1), foto: { tipo: 'predeterminada', valor: 'leche' } });
+  const foto = tarjetas(await montar())[0].querySelector('.tarjeta__foto');
+  igual(foto.querySelector('img')?.getAttribute('src'), fotos.urlFoto?.('leche'));
+  igual(foto.querySelector('img').getAttribute('alt'), '', 'decorativa: el nombre va al lado');
+  igual(foto.querySelector('svg'), null, 'sin icono genérico');
+});
+
+prueba('Id desconocido', async () => {
+  await storage.crearProducto({ nombre: 'Kiwi', fechaCaducidad: dentroDe(1), foto: { tipo: 'predeterminada', valor: 'kiwi' } });
+  const foto = tarjetas(await montar())[0].querySelector('.tarjeta__foto');
+  igual(foto.querySelector('img'), null, 'sin imagen');
+  verdadero(foto.querySelector('svg'), 'icono genérico');
 });
 
 prueba('Nombre con marcado', async () => {
@@ -290,4 +307,222 @@ prueba('volver a primer plano mientras carga no muestra el estado vacío', async
   soltar([]);
   await pantalla.cargado;
   verdadero(pantalla.elemento.querySelector('.listado__vacio'), 'al terminar sí muestra el estado vacío');
+});
+
+// ---------- Deslizar para eliminar ----------
+// Necesitan los estilos reales (posición del botón y transform) y una zona con
+// dimensiones: fuera de la pantalla, no `hidden`.
+
+const zonaGestos = document.createElement('div');
+zonaGestos.id = 'zona-gestos';
+zonaGestos.style.cssText = 'position:absolute; left:-10000px; top:0; width:390px;';
+document.body.append(zonaGestos);
+// Red de seguridad: un clic en una tarjeta no debe cambiar la URL de la página de pruebas.
+zonaGestos.addEventListener('click', (evento) => {
+  if (evento.target.closest('a')) evento.preventDefault();
+});
+
+async function cargarEstilosApp() {
+  if (document.querySelector('link[data-estilos-app]')) return;
+  const enlace = document.createElement('link');
+  enlace.rel = 'stylesheet';
+  enlace.href = '../../src/css/styles.css';
+  enlace.dataset.estilosApp = '';
+  const cargado = new Promise((resolver, rechazar) => { enlace.onload = resolver; enlace.onerror = rechazar; });
+  document.head.append(enlace);
+  await cargado;
+}
+
+let confirmacionesGesto;
+let respuestaGesto;
+let eliminados;
+
+async function montarConGestos(opciones = {}) {
+  await cargarEstilosApp();
+  zonaGestos.replaceChildren();
+  confirmacionesGesto = [];
+  respuestaGesto = true;
+  eliminados = [];
+  const pantalla = listado.crearPantallaListado({
+    hoy: () => HOY_FIJO,
+    confirmar: async (datos) => { confirmacionesGesto.push(datos); return respuestaGesto; },
+    eliminar: async (id) => { eliminados.push(id); return storage.eliminarProducto(id); },
+    ...opciones,
+  });
+  zonaGestos.append(pantalla.elemento);
+  await pantalla.cargado;
+  return pantalla.elemento;
+}
+
+const tarjetaDe = (raiz, nombre) => tarjetas(raiz).find((t) => texto(t, '.tarjeta__nombre') === nombre);
+const contenedorDe = (tarjeta) => tarjeta.closest('.tarjeta-deslizable');
+const abierta = (tarjeta) => contenedorDe(tarjeta).classList.contains('tarjeta-deslizable--abierta');
+const botonEliminar = (tarjeta) => contenedorDe(tarjeta).querySelector('.tarjeta__eliminar');
+const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function puntero(tarjeta, tipo, x, y) {
+  tarjeta.dispatchEvent(new PointerEvent(tipo, {
+    bubbles: true, cancelable: true, pointerId: 1, isPrimary: true, pointerType: 'touch', clientX: x, clientY: y,
+  }));
+}
+
+// Arrastra el dedo `dx`, `dy` px desde la derecha de la tarjeta, en varios pasos.
+function deslizarTarjeta(tarjeta, dx, dy = 0) {
+  const caja = tarjeta.getBoundingClientRect();
+  const x = caja.right - 20;
+  const y = caja.top + caja.height / 2;
+  puntero(tarjeta, 'pointerdown', x, y);
+  for (let i = 1; i <= 6; i += 1) puntero(tarjeta, 'pointermove', x + (dx * i) / 6, y + (dy * i) / 6);
+  puntero(tarjeta, 'pointerup', x + dx, y + dy);
+}
+
+// Un toque: sin movimiento y con el clic que lo sigue. Devuelve si el clic llegó a la
+// tarjeta ya cancelado (es decir, si no habría abierto el Detalle).
+function tocar(tarjeta) {
+  const caja = tarjeta.getBoundingClientRect();
+  puntero(tarjeta, 'pointerdown', caja.left + 30, caja.top + 10);
+  puntero(tarjeta, 'pointerup', caja.left + 30, caja.top + 10);
+  return clicCancelado(tarjeta);
+}
+
+function clicCancelado(tarjeta) {
+  let cancelado = null;
+  const anotar = (evento) => { cancelado = evento.defaultPrevented; };
+  tarjeta.addEventListener('click', anotar);
+  tarjeta.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+  tarjeta.removeEventListener('click', anotar);
+  return cancelado;
+}
+
+prueba('Deslizar lo suficiente', async () => {
+  await storage.crearProducto({ nombre: 'Leche', fechaCaducidad: dentroDe(3) });
+  const raiz = await montarConGestos();
+  const tarjeta = tarjetaDe(raiz, 'Leche');
+  deslizarTarjeta(tarjeta, -150);
+  verdadero(abierta(tarjeta), 'la tarjeta queda abierta');
+  await esperar(350); // fin de la transición
+  const boton = botonEliminar(tarjeta);
+  igual(boton?.textContent.trim(), 'Eliminar');
+  const cajaTarjeta = tarjeta.getBoundingClientRect();
+  const cajaBoton = boton.getBoundingClientRect();
+  verdadero(cajaBoton.width >= 80, `el botón mide ${cajaBoton.width}px`);
+  verdadero(cajaTarjeta.right <= cajaBoton.left + 1, 'el botón queda a la vista, a la derecha de la tarjeta');
+});
+
+prueba('Deslizar poco', async () => {
+  await storage.crearProducto({ nombre: 'Leche', fechaCaducidad: dentroDe(3) });
+  const raiz = await montarConGestos();
+  const tarjeta = tarjetaDe(raiz, 'Leche');
+  deslizarTarjeta(tarjeta, -30);
+  igual(abierta(tarjeta), false);
+  await esperar(350);
+  const contenedor = contenedorDe(tarjeta).getBoundingClientRect();
+  verdadero(Math.abs(tarjeta.getBoundingClientRect().right - contenedor.right) <= 1, 'vuelve a su sitio');
+});
+
+prueba('Gesto vertical', async () => {
+  await storage.crearProducto({ nombre: 'Leche', fechaCaducidad: dentroDe(3) });
+  const raiz = await montarConGestos();
+  const tarjeta = tarjetaDe(raiz, 'Leche');
+  deslizarTarjeta(tarjeta, -40, 120);
+  igual(abierta(tarjeta), false);
+  igual(tarjeta.style.transform || 'none', 'none', 'la tarjeta no se mueve');
+  igual(getComputedStyle(tarjeta).touchAction, 'pan-y', 'el navegador sigue desplazando en vertical');
+});
+
+prueba('Tocar una tarjeta abierta', async () => {
+  await storage.crearProducto({ nombre: 'Leche', fechaCaducidad: dentroDe(3) });
+  const raiz = await montarConGestos();
+  const tarjeta = tarjetaDe(raiz, 'Leche');
+  deslizarTarjeta(tarjeta, -150);
+  verdadero(abierta(tarjeta));
+  igual(tocar(tarjeta), true, 'el clic se cancela: no abre el Detalle');
+  igual(abierta(tarjeta), false, 'la tarjeta se cierra');
+});
+
+prueba('un toque en una tarjeta cerrada abre el Detalle', async () => {
+  await storage.crearProducto({ nombre: 'Leche', fechaCaducidad: dentroDe(3) });
+  const raiz = await montarConGestos();
+  igual(tocar(tarjetaDe(raiz, 'Leche')), false, 'el clic llega a la tarjeta');
+});
+
+prueba('el clic tras deslizar no abre el Detalle', async () => {
+  await storage.crearProducto({ nombre: 'Leche', fechaCaducidad: dentroDe(3) });
+  const raiz = await montarConGestos();
+  const tarjeta = tarjetaDe(raiz, 'Leche');
+  deslizarTarjeta(tarjeta, -30); // no llega a abrirse, pero fue un gesto horizontal
+  igual(clicCancelado(tarjeta), true);
+  igual(clicCancelado(tarjeta), false, 'solo se cancela el clic que sigue al gesto');
+});
+
+prueba('Una sola abierta', async () => {
+  await storage.crearProducto({ nombre: 'Leche', fechaCaducidad: dentroDe(3) });
+  await storage.crearProducto({ nombre: 'Queso', fechaCaducidad: dentroDe(9) });
+  const raiz = await montarConGestos();
+  deslizarTarjeta(tarjetaDe(raiz, 'Leche'), -150);
+  deslizarTarjeta(tarjetaDe(raiz, 'Queso'), -150);
+  igual(abierta(tarjetaDe(raiz, 'Leche')), false, 'Leche se cierra');
+  igual(abierta(tarjetaDe(raiz, 'Queso')), true, 'Queso queda abierta');
+});
+
+prueba('el botón Eliminar no se alcanza con el tabulador', async () => {
+  await storage.crearProducto({ nombre: 'Leche', fechaCaducidad: dentroDe(3) });
+  const raiz = await montarConGestos();
+  const boton = botonEliminar(tarjetaDe(raiz, 'Leche'));
+  igual(boton.getAttribute('tabindex'), '-1');
+  igual(boton.getAttribute('aria-hidden'), 'true');
+});
+
+prueba('Eliminar confirmado', async () => {
+  const leche = await storage.crearProducto({ nombre: 'Leche', fechaCaducidad: dentroDe(3) });
+  await storage.crearProducto({ nombre: 'Queso', fechaCaducidad: dentroDe(9) });
+  const raiz = await montarConGestos();
+  const tarjeta = tarjetaDe(raiz, 'Leche');
+  deslizarTarjeta(tarjeta, -150);
+  botonEliminar(tarjeta).click();
+  await esperarA(() => !tarjetaDe(raiz, 'Leche'));
+  igual(confirmacionesGesto[0].titulo, '¿Eliminar «Leche»?', 'la confirmación nombra el producto');
+  igual(confirmacionesGesto[0].peligro, true);
+  igualProfundo(eliminados, [leche.id]);
+  igual(await storage.obtenerProducto(leche.id), null, 'eliminado del almacenamiento');
+  igualProfundo(nombres(raiz), ['Queso']);
+});
+
+prueba('Eliminar el último producto', async () => {
+  await storage.crearProducto({ nombre: 'Leche', fechaCaducidad: dentroDe(3) });
+  const raiz = await montarConGestos();
+  const tarjeta = tarjetaDe(raiz, 'Leche');
+  deslizarTarjeta(tarjeta, -150);
+  botonEliminar(tarjeta).click();
+  await esperarA(() => raiz.querySelector('.listado__vacio'));
+  igual(texto(raiz, '.listado__vacio-titulo'), 'Todavía no hay productos');
+});
+
+prueba('Eliminar cancelado', async () => {
+  const leche = await storage.crearProducto({ nombre: 'Leche', fechaCaducidad: dentroDe(3) });
+  const raiz = await montarConGestos();
+  respuestaGesto = false;
+  const tarjeta = tarjetaDe(raiz, 'Leche');
+  deslizarTarjeta(tarjeta, -150);
+  botonEliminar(tarjeta).click();
+  await esperarA(() => confirmacionesGesto.length > 0);
+  await esperar(50);
+  igual(abierta(tarjetaDe(raiz, 'Leche')), false, 'la tarjeta se cierra');
+  igualProfundo(nombres(raiz), ['Leche']);
+  igual(eliminados.length, 0);
+  verdadero(await storage.obtenerProducto(leche.id), 'sigue guardado');
+});
+
+prueba('Fallo al eliminar', async () => {
+  const leche = await storage.crearProducto({ nombre: 'Leche', fechaCaducidad: dentroDe(3) });
+  const raiz = await montarConGestos({ eliminar: async () => { throw new storage.ErrorAlmacenamiento('sin espacio'); } });
+  const tarjeta = tarjetaDe(raiz, 'Leche');
+  deslizarTarjeta(tarjeta, -150);
+  botonEliminar(tarjeta).click();
+  const aviso = () => raiz.querySelector('.listado__aviso');
+  await esperarA(() => aviso() && !aviso().hidden);
+  igual(aviso().textContent, 'No se pudo eliminar el producto. Inténtalo de nuevo.');
+  igual(aviso().getAttribute('role'), 'alert');
+  igualProfundo(nombres(raiz), ['Leche']);
+  verdadero(await storage.obtenerProducto(leche.id));
 });

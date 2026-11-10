@@ -5,6 +5,8 @@ import { el, icono, vaciar } from './utils.js';
 import { ICONOS } from './iconos.js';
 import { crearPantallaListado } from './listado.js';
 import { crearPantallaFormulario } from './formulario.js';
+import { crearPantallaElegirFoto } from './elegir-foto.js';
+import { crearPantallaDetalle } from './detalle.js';
 import { volver, reemplazar } from './router.js';
 import { sesionActual, iniciarSesion, cerrarSesion, cargarGoogle } from './auth.js';
 
@@ -164,13 +166,11 @@ export const pantallas = {
 
   nuevo: () => crearPantallaFormulario().elemento,
 
-  detalle: ({ params }) => marcador(`Aquí irá el detalle del producto "${params.id}".`,
-    el('a', { href: `#/producto/${encodeURIComponent(params.id)}/editar`, class: 'btn btn--primario btn--bloque', text: 'Editar' }),
-  ),
+  detalle: ({ params }) => crearPantallaDetalle({ id: params.id }).elemento,
 
   editar: ({ params }) => crearPantallaFormulario({ id: params.id }).elemento,
 
-  elegirFoto: () => marcador('Aquí irá la cuadrícula de fotos predeterminadas.'),
+  elegirFoto: ({ params }) => crearPantallaElegirFoto({ para: params.id ? `editar:${params.id}` : 'nuevo' }).elemento,
 
   ajustes: pantallaAjustes,
 };
