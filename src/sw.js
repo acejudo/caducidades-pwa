@@ -24,6 +24,8 @@ const SHELL_FILES = [
   './js/formato.js',
   './js/iconos.js',
   './js/listado.js',
+  './js/dialogo.js',
+  './js/formulario.js',
   './js/config.local.js',
   './js/auth.js',
   './js/storage.js',

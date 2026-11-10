@@ -57,10 +57,12 @@ src/                    # la app (lo que se publica)
   js/router.js          # router por hash (#/listado, #/producto/:id…)
   js/ui.js              # cabecera, navegación y pantallas (las no implementadas son marcadores)
   js/listado.js         # pantalla Listado: tarjetas, filtros Todas/Pronto/Caducadas y estados vacíos
+  js/formulario.js      # pantallas Nuevo y Editar producto: campos, validación, guardar, cancelar y eliminar
+  js/dialogo.js         # diálogo de confirmación (<dialog>) reutilizable
   js/iconos.js          # iconos SVG de Lucide (licencia ISC) incrustados
   js/auth.js            # Google Sign-In restringido: sesión, token y lista blanca
   js/config.js          # configuración (Drive) y reexporta constantes y config.local.js
-  js/constantes.js      # urgencia y categorías (sin datos sensibles)
+  js/constantes.js      # urgencia, categorías y unidades (sin datos sensibles)
   js/productos.js       # modelo de producto: validación, días restantes, urgencia, orden y filtros
   js/formato.js         # fechas ("20 nov 2026") y cantidades ("0,5 kg") en español
   js/config.local.js          # (no está en git) Client ID y hashes de los emails

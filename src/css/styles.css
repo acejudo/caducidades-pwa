@@ -78,6 +78,8 @@ ol {
 
   /* Urgencia: caducado o 0-2 días / 3-7 días / más de 7 días */
   --color-urgencia-rojo: #EF4444;
+  /* Botón de peligro: texto blanco con contraste 4,8:1 (sobre #EF4444 sería 3,76:1) */
+  --color-peligro: #DC2626;
   --color-urgencia-naranja: #F97316;
   --color-urgencia-verde: #22C55E;
   /* Insignias: fondo suave y texto oscuro del mismo tono (contraste >= 5:1) */
@@ -250,7 +252,7 @@ body {
 }
 
 .btn--peligro {
-  background: var(--color-urgencia-rojo);
+  background: var(--color-peligro);
   color: var(--color-sobre-primario);
 }
 
@@ -528,6 +530,175 @@ body {
 
 .listado__error .btn {
   margin-top: var(--espacio-2);
+}
+
+/* ---------- Formulario de producto ---------- */
+
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-4);
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-1);
+}
+
+.campo__etiqueta {
+  font-weight: var(--peso-medio);
+}
+
+.campo__opcional {
+  font-weight: var(--peso-normal);
+  font-size: var(--texto-secundario);
+  color: var(--color-texto-secundario);
+}
+
+.campo__obligatorio {
+  color: var(--color-urgencia-rojo-texto);
+}
+
+.campo__control {
+  width: 100%;
+  min-height: var(--tactil-min);
+  padding: var(--espacio-2) var(--espacio-3);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-sm);
+  background: var(--color-fondo-input);
+}
+
+.campo__control::placeholder {
+  color: var(--color-texto-secundario);
+}
+
+.campo__control:focus-visible {
+  outline: 2px solid var(--color-primario);
+  outline-offset: -1px;
+  border-color: var(--color-primario);
+}
+
+textarea.campo__control {
+  resize: vertical;
+}
+
+.campo__error {
+  font-size: var(--texto-secundario);
+  color: var(--color-urgencia-rojo-texto);
+}
+
+.campo--error .campo__control {
+  border-color: var(--color-urgencia-rojo-texto);
+}
+
+.cantidad {
+  display: flex;
+  gap: var(--espacio-3);
+}
+
+.cantidad__grupo {
+  display: flex;
+  flex: 1;
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-sm);
+  background: var(--color-fondo-input);
+  overflow: hidden;
+}
+
+.cantidad__grupo .campo__control {
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  text-align: center;
+}
+
+.cantidad__boton {
+  flex: none;
+  width: var(--tactil-min);
+  min-height: var(--tactil-min);
+  font-size: 1.25rem;
+  color: var(--color-texto);
+  cursor: pointer;
+}
+
+.cantidad__boton:disabled {
+  color: var(--color-borde);
+  cursor: not-allowed;
+}
+
+.cantidad__unidad {
+  flex: 1;
+}
+
+.formulario__acciones {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-2);
+  margin: 0 calc(-1 * var(--espacio-4));
+  padding: var(--espacio-3) var(--espacio-4) calc(var(--espacio-3) + env(safe-area-inset-bottom));
+  background: var(--color-fondo);
+  border-top: 1px solid var(--color-borde);
+}
+
+.formulario__estado {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--espacio-4);
+  padding: var(--espacio-6) var(--espacio-4);
+  text-align: center;
+}
+
+.formulario__estado-titulo {
+  font-size: var(--texto-producto);
+  font-weight: var(--peso-semi);
+}
+
+.formulario__peligro {
+  padding-top: var(--espacio-2);
+}
+
+.formulario__aviso {
+  font-size: var(--texto-fecha);
+  color: var(--color-urgencia-rojo-texto);
+}
+
+/* ---------- Diálogo de confirmación ---------- */
+
+.dialogo {
+  width: calc(100% - 2 * var(--espacio-4));
+  max-width: 400px;
+  padding: var(--espacio-5);
+  border: 0;
+  border-radius: var(--radio-lg);
+  background: var(--color-fondo);
+  color: var(--color-texto);
+  box-shadow: var(--sombra-suave);
+}
+
+.dialogo::backdrop {
+  background: rgb(17 24 39 / 0.45);
+}
+
+.dialogo__titulo {
+  font-size: var(--texto-producto);
+  font-weight: var(--peso-semi);
+  overflow-wrap: anywhere;
+}
+
+.dialogo__mensaje {
+  margin-top: var(--espacio-2);
+  color: var(--color-texto-secundario);
+}
+
+.dialogo__acciones {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-2);
+  margin-top: var(--espacio-5);
 }
 
 /* ---------- Utilidades ---------- */

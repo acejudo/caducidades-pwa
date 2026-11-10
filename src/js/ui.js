@@ -4,6 +4,7 @@
 import { el, icono, vaciar } from './utils.js';
 import { ICONOS } from './iconos.js';
 import { crearPantallaListado } from './listado.js';
+import { crearPantallaFormulario } from './formulario.js';
 import { volver, reemplazar } from './router.js';
 import { sesionActual, iniciarSesion, cerrarSesion, cargarGoogle } from './auth.js';
 
@@ -66,11 +67,6 @@ function marcador(nota, ...hijos) {
   return el('section', { class: 'marcador' },
     el('p', { class: 'marcador__nota', text: nota }),
     ...hijos);
-}
-
-function zonaFoto() {
-  return el('a', { href: '#/elegir-foto', class: 'zona-foto' },
-    icono(ICONOS.camara), el('span', { text: 'Toca para elegir foto' }));
 }
 
 const MENSAJES_LOGIN = {
@@ -166,13 +162,13 @@ export const pantallas = {
 
   listado: () => crearPantallaListado().elemento,
 
-  nuevo: () => marcador('Aquí irá el formulario de alta.', zonaFoto()),
+  nuevo: () => crearPantallaFormulario().elemento,
 
   detalle: ({ params }) => marcador(`Aquí irá el detalle del producto "${params.id}".`,
     el('a', { href: `#/producto/${encodeURIComponent(params.id)}/editar`, class: 'btn btn--primario btn--bloque', text: 'Editar' }),
   ),
 
-  editar: ({ params }) => marcador(`Aquí irá el formulario de edición del producto "${params.id}".`, zonaFoto()),
+  editar: ({ params }) => crearPantallaFormulario({ id: params.id }).elemento,
 
   elegirFoto: () => marcador('Aquí irá la cuadrícula de fotos predeterminadas.'),
 

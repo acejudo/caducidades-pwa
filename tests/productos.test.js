@@ -25,6 +25,11 @@ describe('constantes', () => {
     assert.ok(Object.isFrozen(constantes.URGENCIA));
   });
 
+  test('UNIDADES: las del desplegable del formulario', () => {
+    assert.deepEqual([...(constantes.UNIDADES ?? [])], ['ud', 'pack', 'kg', 'g', 'l', 'ml']);
+    assert.ok(Object.isFrozen(constantes.UNIDADES));
+  });
+
   test('CATEGORIAS contiene las categorías de docs/SPEC.md', () => {
     assert.deepEqual([...constantes.CATEGORIAS], ['Nevera', 'Congelador', 'Despensa', 'Otros']);
     assert.ok(Object.isFrozen(constantes.CATEGORIAS));
