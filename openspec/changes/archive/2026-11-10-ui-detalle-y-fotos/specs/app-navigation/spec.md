@@ -3,7 +3,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Rutas de pantalla
-La app SHALL ofrecer una ruta direccionable en la URL para cada pantalla de `docs/SPEC.md` §5: Login, Listado, Nuevo producto, Detalle de producto (con id), Editar producto (con id), Elegir foto y Ajustes. Elegir foto MUST tener una ruta por formulario de origen: una para Nuevo producto y otra para Editar producto (con id), de modo que sepa a qué formulario devolver la foto. Al entrar en una ruta, la app MUST mostrar la pantalla correspondiente con su título en español, aunque su contenido aún sea un marcador vacío.
+La app SHALL ofrecer una ruta direccionable en la URL para cada pantalla de `docs/SPEC.md` §5: Login, Listado, Nuevo producto, Detalle de producto (con id), Editar producto (con id), Elegir foto y Ajustes. Elegir foto MUST tener una ruta por formulario de origen (Nuevo producto, y Editar producto con id). Al entrar en una ruta, la app MUST mostrar la pantalla correspondiente con su título en español, aunque su contenido aún sea un marcador vacío.
 
 #### Scenario: Acceso directo a una ruta
 - **WHEN** el usuario abre la app con la URL de la pantalla Ajustes

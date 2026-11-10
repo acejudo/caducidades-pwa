@@ -113,7 +113,7 @@ Desarrollo con TDD (design.md §11). En cada bloque, primero van las pruebas en 
 
 - [x] 9.1 Ejecutar `npm test` y `npm run test:navegador`. Verificar que están en verde.
 - [x] 9.2 Capturas finales a tamaño móvil de Listado con fotos, Detalle, Elegir foto (con una foto marcada y con una búsqueda) y Nuevo con foto. Verificar que se parecen a los mockups y no tienen errores en la consola.
-- [ ] 9.3 Manual en el móvil, tras desplegar (dar al usuario los comandos de commit y push):
+- [x] 9.3 Manual en el móvil, tras desplegar (dar al usuario los comandos de commit y push):
   - Recorrido completo tocando: alta con foto, Detalle, cambiar la foto en Editar, "Sin foto" y eliminar desde el Detalle.
   - Deslizar para eliminar sin que se dispare al hacer *scroll* ni choque con el gesto "atrás" del sistema.
   - "Abrir Elegir foto sin conexión" en modo avión, con las imágenes visibles.
