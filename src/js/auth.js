@@ -58,10 +58,19 @@ export function sesionActual() {
   return { email: sesion.email, nombre: sesion.nombre || sesion.email };
 }
 
+// Token vigente con el permiso de Drive actual. Un token de antes del cambio de permiso
+// (solo drive.file) no cuenta: hay que renovarlo y aceptar el permiso nuevo.
 export function tokenVigente() {
   const token = leer(sesionNavegador, CLAVE_TOKEN) ?? tokenEnMemoria;
   if (!token?.accessToken || !(Date.now() < token.expira)) return null;
+  if (!String(token.scopes ?? '').split(' ').includes(DRIVE_SCOPE)) return null;
   return token.accessToken;
+}
+
+// Olvida el token (Google lo ha rechazado) sin tocar la sesión.
+export function olvidarToken() {
+  tokenEnMemoria = null;
+  borrar(sesionNavegador, CLAVE_TOKEN);
 }
 
 function guardarSesion(email, nombre) {
@@ -69,8 +78,8 @@ function guardarSesion(email, nombre) {
   escribir(local, CLAVE_SESION, sesionEnMemoria);
 }
 
-function guardarToken(accessToken, expiresIn) {
-  tokenEnMemoria = { accessToken, expira: Date.now() + Number(expiresIn) * 1000 - MARGEN_TOKEN_MS };
+function guardarToken(accessToken, expiresIn, scopes) {
+  tokenEnMemoria = { accessToken, expira: Date.now() + Number(expiresIn) * 1000 - MARGEN_TOKEN_MS, scopes };
   escribir(sesionNavegador, CLAVE_TOKEN, tokenEnMemoria);
 }
 
@@ -197,25 +206,41 @@ export async function iniciarSesion() {
   }
 
   guardarSesion(email, perfil.name || email);
-  guardarToken(accessToken, respuesta.expires_in);
+  guardarToken(accessToken, respuesta.expires_in, respuesta.scope ?? SCOPES);
   return { ok: true };
 }
 
-// Pide un token nuevo sin repetir el consentimiento. Debe llamarse desde un gesto del
-// usuario y con Google ya cargado (cargarGoogle()) para que no se bloquee la ventana.
+// Pide un token nuevo sin repetir el consentimiento ya dado. Si falta un permiso (por
+// ejemplo, el de Drive ampliado), Google muestra el consentimiento de ese permiso
+// (user-auth, "Ampliación del permiso de Drive"). Debe llamarse desde un gesto del usuario
+// y con Google ya cargado (cargarGoogle()) para que no se bloquee la ventana.
+// Resultado: { ok: true, token } o { ok: false, motivo: 'cancelado' | 'sin-drive' | 'error' }.
 export async function renovarToken() {
   const sesion = sesionActual();
-  if (!sesion) return null;
-  const google = await cargarGoogle();
+  if (!sesion) return { ok: false, motivo: 'error' };
+  let google;
+  try {
+    google = await cargarGoogle();
+  } catch {
+    return { ok: false, motivo: 'error' };
+  }
   const respuesta = await pedirToken(google, { prompt: '', login_hint: sesion.email });
-  if (respuesta.error || !google.accounts.oauth2.hasGrantedAllScopes(respuesta, DRIVE_SCOPE)) return null;
-  guardarToken(respuesta.access_token, respuesta.expires_in);
-  return respuesta.access_token;
+  if (respuesta.error) {
+    return { ok: false, motivo: CANCELACIONES.has(respuesta.error) ? 'cancelado' : 'error' };
+  }
+  if (!google.accounts.oauth2.hasGrantedAllScopes(respuesta, DRIVE_SCOPE)) {
+    revocar(google, respuesta.access_token);
+    return { ok: false, motivo: 'sin-drive' };
+  }
+  guardarToken(respuesta.access_token, respuesta.expires_in, respuesta.scope ?? SCOPES);
+  return { ok: true, token: respuesta.access_token };
 }
 
 // Borra la sesión y el token al momento; la revocación en Google va aparte y sin esperar.
+// Se revoca el token guardado aunque sea de un permiso anterior.
 export function cerrarSesion() {
-  const accessToken = tokenVigente();
+  const guardado = leer(sesionNavegador, CLAVE_TOKEN) ?? tokenEnMemoria;
+  const accessToken = guardado?.accessToken && Date.now() < guardado.expira ? guardado.accessToken : null;
   olvidar();
   if (accessToken && navigator.onLine) {
     cargarGoogle().then((google) => revocar(google, accessToken)).catch(() => {});

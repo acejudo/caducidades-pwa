@@ -24,12 +24,12 @@ if (router) arrancar();
 
 async function arrancar() {
   const { registrar, setGuard, iniciar } = router;
-  const { mostrar, pantallas } = ui;
+  const { mostrar, pantallas, iniciarSincronizacion } = ui;
   const { sesionActual, revalidarSesion } = auth;
 
   // Orden importante: las rutas estáticas antes que las de parámetro.
   registrar('/login', { titulo: 'Caducidades', mostrarNav: false, mostrarCabecera: false, render: pantallas.login });
-  registrar('/listado', { titulo: 'Caducidades', mostrarNav: true, render: pantallas.listado });
+  registrar('/listado', { titulo: 'Caducidades', mostrarNav: true, mostrarSincronizacion: true, render: pantallas.listado });
   registrar('/producto/nuevo', { titulo: 'Nuevo producto', mostrarNav: false, padre: '/listado', render: pantallas.nuevo });
   // Elegir foto tiene una ruta por formulario de origen: sabe a cuál devolver la foto y
   // ese formulario es su padre (design.md §4).
@@ -47,6 +47,10 @@ async function arrancar() {
     if (sesionActual()) return path === '/login' ? '/listado' : true;
     return path === '/login' ? true : '/login';
   });
+
+  // Con la sesión recordada, la sincronización se pone en marcha al abrir la app (solo
+  // sincroniza sola si el token sigue vigente; si no, espera a un toque).
+  if (sesionActual()) iniciarSincronizacion();
 
   iniciar(mostrar);
 }

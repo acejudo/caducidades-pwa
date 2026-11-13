@@ -3,7 +3,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
 // Import tolerante: si el módulo aún no existe, cada prueba falla por separado (rojo).
-const { formatearFecha, formatearCantidad } = await import('../src/js/formato.js').catch((error) => {
+const { formatearFecha, formatearCantidad, formatearMomento } = await import('../src/js/formato.js').catch((error) => {
   console.error(`No se pudo cargar formato.js: ${error.message}`);
   return {};
 });
@@ -53,5 +53,28 @@ describe('formato: cantidades', () => {
   test('como máximo dos decimales', () => {
     assert.equal(formatearCantidad(1 / 3, 'kg'), '0,33 kg');
     assert.equal(formatearCantidad(2.999, 'kg'), '3 kg');
+  });
+});
+
+describe('formato: momento de la última sincronización', () => {
+  // En hora local: la app muestra la hora del dispositivo.
+  const AHORA = new Date(2026, 10, 13, 20, 0);
+  const iso = (...partes) => new Date(...partes).toISOString();
+
+  test('hoy', () => {
+    assert.equal(formatearMomento(iso(2026, 10, 13, 18, 30), AHORA), 'hoy a las 18:30');
+  });
+
+  test('ayer, con la hora sin cero delante', () => {
+    assert.equal(formatearMomento(iso(2026, 10, 12, 9, 5), AHORA), 'ayer a las 9:05');
+  });
+
+  test('otro día', () => {
+    assert.equal(formatearMomento(iso(2026, 10, 10, 18, 30), AHORA), '10 nov 2026 a las 18:30');
+  });
+
+  test('medianoche', () => {
+    assert.equal(formatearMomento(iso(2026, 10, 13, 0, 0), AHORA), 'hoy a las 0:00');
+    assert.equal(formatearMomento(iso(2026, 10, 12, 23, 59), AHORA), 'ayer a las 23:59');
   });
 });

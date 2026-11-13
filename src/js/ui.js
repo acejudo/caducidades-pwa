@@ -1,5 +1,5 @@
-// Interfaz: cabecera, navegación inferior y pantallas.
-// Las pantallas que aún no están implementadas son marcadores.
+// Interfaz: cabecera, navegación inferior y pantallas, y la instancia de la
+// sincronización con Drive que usa la app.
 
 import { el, icono, vaciar } from './utils.js';
 import { ICONOS } from './iconos.js';
@@ -8,7 +8,37 @@ import { crearPantallaFormulario } from './formulario.js';
 import { crearPantallaElegirFoto } from './elegir-foto.js';
 import { crearPantallaDetalle } from './detalle.js';
 import { volver, reemplazar } from './router.js';
-import { sesionActual, iniciarSesion, cerrarSesion, cargarGoogle } from './auth.js';
+import {
+  sesionActual, iniciarSesion, cerrarSesion, cargarGoogle, tokenVigente, renovarToken, olvidarToken,
+} from './auth.js';
+import { crearSincronizador } from './sincronizador.js';
+import { crearBotonSincronizacion, crearSeccionSincronizacion } from './estado-sincronizacion.js';
+
+// ---------- Sincronización con Drive ----------
+
+export const sincronizador = crearSincronizador({
+  auth: { sesionActual, tokenVigente, renovarToken, olvidarToken },
+});
+
+let sincronizacionIniciada = false;
+
+// Con sesión: empieza a escuchar cambios y la red, y sincroniza si hay token vigente.
+export function iniciarSincronizacion() {
+  if (sincronizacionIniciada) return;
+  sincronizacionIniciada = true;
+  sincronizador.iniciar();
+}
+
+function detenerSincronizacion() {
+  sincronizador.detener();
+  sincronizacionIniciada = false;
+}
+
+// Sin token vigente, el toque para sincronizar abre la ventana de Google: se precarga
+// para que el navegador no la bloquee (design.md §6).
+sincronizador.suscribir((estado) => {
+  if (estado.enLinea && !estado.tokenVigente && sesionActual()) cargarGoogle().catch(() => {});
+});
 
 const NAV = [
   { path: '/listado', texto: 'Listado', icono: ICONOS.lista },
@@ -43,6 +73,9 @@ function pintarCabecera(ruta) {
     );
   }
   $cabecera().append(el('h1', { class: 'cabecera__titulo', text: ruta.titulo }));
+  if (ruta.mostrarSincronizacion) {
+    $cabecera().append(crearBotonSincronizacion({ sincronizador }).elemento);
+  }
 }
 
 function pintarNav(ruta, path) {
@@ -63,13 +96,7 @@ function pintarNav(ruta, path) {
   }
 }
 
-// ---------- Pantallas (marcadores) ----------
-
-function marcador(nota, ...hijos) {
-  return el('section', { class: 'marcador' },
-    el('p', { class: 'marcador__nota', text: nota }),
-    ...hijos);
-}
+// ---------- Pantallas ----------
 
 const MENSAJES_LOGIN = {
   cancelado: 'No se completó el inicio de sesión. Puedes volver a intentarlo.',
@@ -112,6 +139,8 @@ function pantallaLogin() {
     const resultado = await iniciarSesion();
     enCurso = false;
     if (resultado.ok) {
+      // Token recién obtenido: la primera sincronización es automática.
+      iniciarSincronizacion();
       reemplazar('/listado');
       return;
     }
@@ -141,7 +170,8 @@ function pantallaLogin() {
 
 function pantallaAjustes() {
   const sesion = sesionActual();
-  return marcador('Aquí irán la sincronización y las notificaciones.',
+  return el('section', { class: 'ajustes' },
+    crearSeccionSincronizacion({ sincronizador }).elemento,
     el('section', { class: 'cuenta' },
       el('h2', { class: 'cuenta__titulo', text: 'Cuenta' }),
       el('p', { class: 'cuenta__nombre', text: sesion?.nombre ?? '' }),
@@ -152,6 +182,7 @@ function pantallaAjustes() {
       class: 'btn btn--peligro btn--bloque',
       text: 'Cerrar sesión',
       onClick: () => {
+        detenerSincronizacion();
         cerrarSesion();
         reemplazar('/login');
       },

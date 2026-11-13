@@ -5,6 +5,7 @@
 import {
   ErrorValidacion, aplicarCambios, marcarEliminado, nuevoProducto, ordenarPorCaducidad,
 } from './productos.js';
+import { fusionar } from './sincronizacion.js';
 
 const VERSION = 1;
 const ALMACEN = 'productos';
@@ -142,6 +143,14 @@ async function enTransaccion(modo, operacion) {
 
 // ---------- API pública ----------
 
+// Emite 'cambio' tras cada alta, actualización o baja confirmada, para que la
+// sincronización marque cambios pendientes. Los guardados de la sincronización no avisan.
+export const cambiosLocales = new EventTarget();
+
+function avisarCambio() {
+  cambiosLocales.dispatchEvent(new Event('cambio'));
+}
+
 // Productos no eliminados, ordenados por caducidad.
 export async function listarProductos() {
   const todos = await enTransaccion('readonly', (almacen) => peticion(almacen.getAll()));
@@ -159,6 +168,7 @@ export async function obtenerProducto(id) {
 export async function crearProducto(datos) {
   const producto = nuevoProducto(datos);
   await enTransaccion('readwrite', (almacen) => peticion(almacen.add(producto)));
+  avisarCambio();
   return producto;
 }
 
@@ -166,21 +176,50 @@ export async function crearProducto(datos) {
 // transacción; devuelve el producto resultante. Lanza ErrorNoEncontrado (no existe o
 // está eliminado), ErrorValidacion o ErrorAlmacenamiento, sin cambiar nada.
 export async function actualizarProducto(id, cambios) {
-  return enTransaccion('readwrite', async (almacen) => {
+  const resultado = await enTransaccion('readwrite', async (almacen) => {
     const guardado = await peticion(almacen.get(id));
     if (!guardado || guardado.eliminado) throw new ErrorNoEncontrado(id);
     const actualizado = aplicarCambios(guardado, cambios);
     await peticion(almacen.put(actualizado));
     return actualizado;
   });
+  avisarCambio();
+  return resultado;
 }
 
 // Marca el producto como eliminado (conserva el registro para la sincronización).
 // Si no existe o ya estaba eliminado, no hace nada.
 export async function eliminarProducto(id) {
-  await enTransaccion('readwrite', async (almacen) => {
+  const eliminado = await enTransaccion('readwrite', async (almacen) => {
     const guardado = await peticion(almacen.get(id));
-    if (!guardado || guardado.eliminado) return;
+    if (!guardado || guardado.eliminado) return false;
     await peticion(almacen.put(marcarEliminado(guardado)));
+    return true;
+  });
+  if (eliminado) avisarCambio();
+}
+
+// ---------- Sincronización con Drive (drive-sync) ----------
+
+// Todos los productos, también los eliminados, sin ordenar.
+export async function listarTodos() {
+  return enTransaccion('readonly', (almacen) => peticion(almacen.getAll()));
+}
+
+// Guarda los productos que llegan de la sincronización con su `actualizado` original.
+// Fusiona con lo guardado en la misma transacción: un cambio que el usuario haya hecho
+// mientras tanto es más reciente y gana. Después borra los `idsPurgados` que sigan
+// eliminados. No avisa de cambio local.
+export async function guardarSincronizados(productos, idsPurgados = []) {
+  await enTransaccion('readwrite', async (almacen) => {
+    const guardados = await peticion(almacen.getAll());
+    const porId = new Map(guardados.map((p) => [p.id, p]));
+    for (const producto of fusionar(guardados, productos)) {
+      if (porId.get(producto.id) !== producto) await peticion(almacen.put(producto));
+      porId.set(producto.id, producto);
+    }
+    for (const id of idsPurgados) {
+      if (porId.get(id)?.eliminado) await peticion(almacen.delete(id));
+    }
   });
 }

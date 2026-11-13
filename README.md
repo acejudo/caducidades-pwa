@@ -90,6 +90,7 @@ scripts/captura-app.mjs           # captura la app a tamaño móvil con sesión 
 - Solo pueden entrar los emails autorizados. La app guarda sus hashes SHA-256, nunca los emails en texto.
 - Tras un login válido, la sesión (email y nombre) se recuerda en el dispositivo y la app abre directamente, también sin conexión, hasta pulsar **Cerrar sesión** en Ajustes.
 - El token de Google Drive dura ~1 hora y no se guarda al cerrar la app.
+- La app pide acceso completo a Google Drive (`.../auth/drive`) para poder usar una carpeta `Caducidades` que otra cuenta autorizada te haya compartido. Solo consulta `caducidades.json` y esa carpeta. El acceso se retira en <https://myaccount.google.com/permissions>.
 
 ### Configurar Google Cloud (una sola vez)
 
@@ -99,13 +100,28 @@ Con tu cuenta personal en <https://console.cloud.google.com/>:
 2. **Google Auth Platform**:
    - *Branding*: nombre `Caducidades` y tu email de asistencia.
    - *Público*: tipo **Externo**, estado **Prueba**. Añade los emails autorizados como **usuarios de prueba**.
-   - *Acceso a datos*: permisos `openid`, `.../auth/userinfo.email`, `.../auth/userinfo.profile` y `.../auth/drive.file`.
+   - *Acceso a datos*: permisos `openid`, `.../auth/userinfo.email`, `.../auth/userinfo.profile` y `.../auth/drive` (permiso restringido: con la app en estado **Prueba** no hace falta verificarla; Google muestra el aviso de "app no verificada").
    - *Clientes → Crear cliente → Aplicación web*, con estos **orígenes de JavaScript autorizados** (sin URIs de redirección):
      - `https://acejudo.github.io`
      - `http://localhost:8080`
 3. Copia el **ID de cliente**.
 
 Para añadir o quitar una persona: actualiza los usuarios de prueba en Google, el Secret `EMAILS_AUTORIZADOS` y tu `src/js/config.local.js`. Si un email deja de estar autorizado, su sesión guardada se borra la próxima vez que abra la app.
+
+## Sincronización con Google Drive
+
+- La lista se guarda en `Caducidades/caducidades.json`, en el Drive de quien la crea (formato en [docs/SPEC.md](docs/SPEC.md) §4.2).
+- Se sincroniza sola mientras el token de Google está vigente: al entrar, al abrir la app, unos segundos después de cada cambio y al volver la conexión. Sin token vigente (por ejemplo, al abrir la app al día siguiente), toca el icono de la cabecera del Listado o **Sincronizar ahora** en Ajustes.
+- Sin conexión se sigue trabajando en local; los cambios quedan pendientes hasta la siguiente sincronización.
+- Si un producto se cambia en dos dispositivos, gana el cambio más reciente. Las bajas se purgan a los 90 días.
+
+### Compartir la lista con otra cuenta
+
+1. La primera cuenta sincroniza y acepta **crear una lista nueva**: aparece la carpeta `Caducidades` en su Drive.
+2. En [Google Drive](https://drive.google.com), comparte esa carpeta `Caducidades` con la otra cuenta como **Editor**.
+3. Después, la otra cuenta toca para sincronizar. Si le pregunta si quiere crear una lista nueva, es que aún no le ha llegado la carpeta compartida: que responda **Ahora no** y lo intente cuando la vea en *Compartido conmigo*.
+
+Si por error las dos cuentas crean su propia lista, cada dispositivo sigue usando la que recuerda. Para quedarse con una sola, la cuenta que creó la más reciente borra su carpeta `Caducidades` de Drive y la otra cuenta le comparte la suya: en la siguiente sincronización, sus dispositivos pasan a la lista que queda (la creada primero) y suben sus productos, así que no se pierde nada.
 
 ## Iconos
 

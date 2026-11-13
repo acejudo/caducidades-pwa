@@ -243,3 +243,108 @@ prueba('Cerrar sesión y volver a entrar', async () => {
   storage.usarBaseDeDatos(BD_PRUEBAS); // volver a entrar: conexión nueva
   igualProfundo((await storage.listarProductos()).map((p) => p.id), [a.id, b.id]);
 });
+
+// ---------- Sincronización con Drive ----------
+
+function remoto(id, cambios = {}) {
+  return {
+    id,
+    nombre: `Remoto ${id}`,
+    fechaCompra: null,
+    fechaCaducidad: '2026-11-30',
+    cantidad: 1,
+    unidad: 'ud',
+    categoria: 'Nevera',
+    foto: { tipo: 'ninguna', valor: null },
+    notas: null,
+    eliminado: false,
+    actualizado: '2026-11-01T10:00:00.000Z',
+    ...cambios,
+  };
+}
+
+// Anota los avisos de cambio local hasta que se llama a la función devuelta.
+function escucharCambios() {
+  const avisos = [];
+  const oyente = (evento) => avisos.push(evento.type);
+  storage.cambiosLocales.addEventListener('cambio', oyente);
+  return { avisos, dejar: () => storage.cambiosLocales.removeEventListener('cambio', oyente) };
+}
+
+prueba('listarTodos incluye los eliminados', async () => {
+  const leche = await storage.crearProducto({ nombre: 'Leche', fechaCaducidad: '2026-11-20' });
+  const pan = await storage.crearProducto({ nombre: 'Pan', fechaCaducidad: '2026-11-21' });
+  await storage.eliminarProducto(pan.id);
+  const todos = await storage.listarTodos();
+  igualProfundo(todos.map((p) => p.id).sort(), [leche.id, pan.id].sort());
+  igual(todos.find((p) => p.id === pan.id).eliminado, true);
+});
+
+prueba('Producto recibido de Drive', async () => {
+  await storage.guardarSincronizados([remoto('r1', { actualizado: '2026-11-01T10:00:00.000Z' })]);
+  const guardado = await storage.obtenerProducto('r1');
+  igual(guardado?.actualizado, '2026-11-01T10:00:00.000Z', 'conserva actualizado');
+  igualProfundo(guardado, remoto('r1'));
+});
+
+prueba('guardarSincronizados no pisa un producto local más reciente', async () => {
+  const local = await storage.crearProducto({ nombre: 'Editado ahora', fechaCaducidad: '2026-11-20' });
+  // Una sincronización que empezó antes trae una versión antigua del mismo producto.
+  await storage.guardarSincronizados([remoto(local.id, { nombre: 'Versión antigua', actualizado: '2026-11-01T10:00:00.000Z' })]);
+  igual((await storage.obtenerProducto(local.id)).nombre, 'Editado ahora');
+});
+
+prueba('guardarSincronizados aplica bajas y borra los ids purgados', async () => {
+  await storage.guardarSincronizados([remoto('a'), remoto('b'), remoto('viejo', { eliminado: true })]);
+  await storage.guardarSincronizados(
+    [remoto('a'), remoto('b', { eliminado: true, actualizado: '2026-11-02T10:00:00.000Z' })],
+    ['viejo'],
+  );
+  igualProfundo((await storage.listarProductos()).map((p) => p.id), ['a']);
+  igual(await leerDirecto('viejo'), undefined, 'purgado del almacenamiento');
+  igual((await leerDirecto('b')).eliminado, true, 'la baja se guarda');
+});
+
+prueba('guardarSincronizados no borra un purgado que vuelve a estar vivo', async () => {
+  await storage.listarProductos(); // crea la base de datos
+  await escribirDirecto(remoto('p', { nombre: 'Vivo', actualizado: '2026-11-12T10:00:00.000Z' }));
+  await storage.guardarSincronizados([], ['p']);
+  igual((await storage.obtenerProducto('p'))?.nombre, 'Vivo');
+});
+
+prueba('Alta avisa', async () => {
+  const { avisos, dejar } = escucharCambios();
+  try {
+    const p = await storage.crearProducto({ ...MINIMO });
+    igual(avisos.length, 1, 'alta');
+    await storage.actualizarProducto(p.id, { cantidad: 3 });
+    igual(avisos.length, 2, 'actualización');
+    await storage.eliminarProducto(p.id);
+    igual(avisos.length, 3, 'baja');
+  } finally {
+    dejar();
+  }
+});
+
+prueba('Escritura fallida', async () => {
+  const p = await storage.crearProducto({ ...MINIMO });
+  const { avisos, dejar } = escucharCambios();
+  try {
+    await rechaza(storage.actualizarProducto(p.id, { nombre: '' }), ErrorValidacion);
+    await rechaza(storage.crearProducto({ nombre: '' }), ErrorValidacion);
+    await storage.eliminarProducto('no-existe');
+    igual(avisos.length, 0);
+  } finally {
+    dejar();
+  }
+});
+
+prueba('Guardado de la sincronización', async () => {
+  const { avisos, dejar } = escucharCambios();
+  try {
+    await storage.guardarSincronizados([remoto('r1')]);
+    igual(avisos.length, 0);
+  } finally {
+    dejar();
+  }
+});

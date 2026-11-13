@@ -178,7 +178,7 @@ Botones:
 ### 6.1 Google Sign-In restringido
 
 - Login **obligatorio** con Google Identity Services
-- Scope necesario: `https://www.googleapis.com/auth/drive.file`
+- Scope necesario: `https://www.googleapis.com/auth/drive` (acceso completo a Drive). Con `drive.file` cada cuenta solo vería los archivos que la app creó para ella, y la segunda cuenta no podría usar la carpeta `Caducidades` compartida. La app solo consulta `caducidades.json` y esa carpeta.
 - Lista blanca de emails autorizados (hardcodeada en el código):
   - Solo los emails definidos en la lista podrán acceder (tantos como se configuren)
   - Si un usuario inicia sesión con un email no autorizado → se muestra “Acceso denegado” y se cierra la sesión automáticamente

@@ -430,6 +430,12 @@ body {
   overflow-wrap: anywhere;
 }
 
+.ajustes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-4);
+}
+
 .marcador {
   display: flex;
   flex-direction: column;
@@ -1045,4 +1051,102 @@ textarea.campo__control {
   margin-bottom: var(--espacio-3);
   font-size: var(--texto-fecha);
   color: var(--color-urgencia-rojo-texto);
+}
+
+/* ---------- Sincronización (sync-status) ---------- */
+
+.cabecera__accion {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tactil-min);
+  min-height: var(--tactil-min);
+  margin-right: calc(-1 * var(--espacio-3));
+  border-radius: var(--radio-completo);
+  color: var(--color-texto);
+}
+
+.cabecera__accion:active {
+  background: var(--color-fondo-input);
+}
+
+.cabecera__accion:disabled {
+  color: var(--color-texto-secundario);
+  cursor: default;
+}
+
+.sync__icono {
+  display: inline-flex;
+}
+
+.sync--girando .sync__icono {
+  animation: sync-girar 1s linear infinite;
+}
+
+@keyframes sync-girar {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sync--girando .sync__icono {
+    animation: none;
+  }
+}
+
+/* Marca de aviso: cambios pendientes, hay que tocar o hubo un error. */
+.sync__aviso {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--color-fondo);
+  border-radius: var(--radio-completo);
+  background: var(--color-urgencia-naranja);
+}
+
+.ajustes-sync {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-2);
+  padding: var(--espacio-4);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-md);
+  box-shadow: var(--sombra-suave);
+}
+
+.ajustes-sync__titulo {
+  font-size: var(--texto-secundario);
+  font-weight: var(--peso-semi);
+  color: var(--color-texto-secundario);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ajustes-sync__servicio {
+  font-size: var(--texto-producto);
+  font-weight: var(--peso-semi);
+}
+
+.ajustes-sync__estado {
+  font-weight: var(--peso-medio);
+}
+
+.ajustes-sync__estado[data-estado="Sincronizado"] {
+  color: var(--color-urgencia-verde-texto);
+}
+
+.ajustes-sync__estado[data-estado="Error al sincronizar"],
+.ajustes-sync__error {
+  color: var(--color-urgencia-rojo-texto);
+}
+
+.ajustes-sync__ultima {
+  font-size: var(--texto-fecha);
+  color: var(--color-texto-secundario);
+}
+
+.ajustes-sync .btn {
+  margin-top: var(--espacio-2);
 }

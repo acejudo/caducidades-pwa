@@ -15,3 +15,15 @@ export function formatearCantidad(cantidad, unidad) {
   const numero = String(Math.round(cantidad * 100) / 100).replace('.', ',');
   return `${numero} ${unidad}`;
 }
+
+// Momento ISO → 'hoy a las 18:30', 'ayer a las 9:05' o '10 nov 2026 a las 18:30', en la
+// hora local del dispositivo (última sincronización, sync-status).
+export function formatearMomento(iso, ahora = new Date()) {
+  const momento = new Date(iso);
+  const hora = `${momento.getHours()}:${String(momento.getMinutes()).padStart(2, '0')}`;
+  const dia = (fecha) => `${fecha.getFullYear()}-${fecha.getMonth()}-${fecha.getDate()}`;
+  const ayer = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() - 1);
+  if (dia(momento) === dia(ahora)) return `hoy a las ${hora}`;
+  if (dia(momento) === dia(ayer)) return `ayer a las ${hora}`;
+  return `${momento.getDate()} ${MESES[momento.getMonth()]} ${momento.getFullYear()} a las ${hora}`;
+}
