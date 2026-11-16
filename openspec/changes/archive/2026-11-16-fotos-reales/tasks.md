@@ -59,8 +59,8 @@
 
 - [x] 12.1 Ejecutar `npm test` y `npm run test:navegador` y verificar que todo está en verde.
 - [x] 12.2 Recorrido con `node scripts/captura-app.mjs` por Elegir foto (sin "Próximamente", tres botones) y por el formulario y el detalle de un producto con foto predeterminada, sin errores en la consola. Capturas en el scratchpad.
-- [ ] 12.3 Manual en el móvil (tras desplegar): hacer una foto con la cámara y otra de la galería, guardar, cerrar la app y volver a abrirla en modo avión. Las fotos se ven en el listado y el detalle.
-- [ ] 12.4 Manual: tras sincronizar, la foto aparece en `Caducidades/fotos/` del Drive y pesa unos cientos de KB como mucho.
+- [x] 12.3 Manual en el móvil (tras desplegar): hacer una foto con la cámara y otra de la galería, guardar, cerrar la app y volver a abrirla en modo avión. Las fotos se ven en el listado y el detalle.
+- [x] 12.4 Manual: tras sincronizar, la foto aparece en `Caducidades/fotos/` del Drive y pesa unos cientos de KB como mucho.
 - [ ] 12.5 Manual, con la pareja: la foto hecha en un móvil se ve en el otro tras sincronizar; al cambiarla, llega la nueva; en iOS funcionan "Hacer foto" y "Elegir de la galería".
 
 ## Workflow follow-up

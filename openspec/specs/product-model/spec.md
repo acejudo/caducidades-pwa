@@ -28,7 +28,7 @@ Antes de validar, los campos de texto SHALL normalizarse quitando los espacios d
 - **THEN** el nombre guardado es "Leche" y las notas son `null`
 
 ### Requirement: Validación de un producto
-Un producto MUST NOT guardarse si algún campo no es válido. El error SHALL indicar cada campo incorrecto con un mensaje en español. Reglas: `nombre` obligatorio (1 a 100 caracteres); `fechaCaducidad` obligatoria; las fechas deben ser días reales del calendario; `cantidad` número mayor que 0; `unidad` no vacía; `categoria` de la lista; `foto.tipo` válido.
+Un producto MUST NOT guardarse si algún campo no es válido. El error SHALL indicar cada campo incorrecto con un mensaje en español. Reglas: `nombre` obligatorio (1 a 100 caracteres); `fechaCaducidad` obligatoria; las fechas deben ser días reales del calendario; `cantidad` número mayor que 0; `unidad` no vacía; `categoria` de la lista; `foto.tipo` válido; y, si `foto.tipo` es `real`, `foto.valor` MUST ser un nombre de foto válido: un UUID en minúsculas seguido de `.webp` o `.jpg`.
 
 #### Scenario: Faltan los obligatorios
 - **WHEN** se intenta crear un producto sin nombre y sin fecha de caducidad
@@ -49,6 +49,14 @@ Un producto MUST NOT guardarse si algún campo no es válido. El error SHALL ind
 #### Scenario: Cantidad decimal
 - **WHEN** se crea un producto con cantidad 0.5 y unidad "kg"
 - **THEN** se guarda con cantidad 0.5
+
+#### Scenario: Nombre de foto real válido
+- **WHEN** se crea un producto con `foto: { tipo: "real", valor: "3f2b8c1e-9a4d-4e6f-8b2a-1c5d7e9f0a3b.webp" }`
+- **THEN** se guarda con esa foto
+
+#### Scenario: Nombre de foto real no válido
+- **WHEN** se intenta guardar un producto con foto real de valor "../caducidades.json", "foto.png" o "ABC.webp"
+- **THEN** no se guarda y el error indica el campo `foto`
 
 ### Requirement: Identificador único
 Cada producto nuevo SHALL recibir un identificador único generado por la app, que MUST NOT cambiar durante la vida del producto. El identificador no lo elige el usuario.
