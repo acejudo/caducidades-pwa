@@ -53,6 +53,13 @@ Antes de dar una tarea por terminada: `npm test` y `npm run test:navegador` en v
 - `el()` ignora los hijos `null`/`false` (vale `cond && el(...)`), pero `append()` y `replaceChildren()` **los pintan como texto** ("false", "null"). Con ellos, filtra antes (`[...].filter(Boolean)`). Las pruebas de pantalla comprueban que no queda texto suelto.
 - Contraste: el texto blanco sobre los colores de urgencia o sobre `#EF4444` no llega a 4,5:1. Usa los tokens `--color-urgencia-*-texto`/`-suave` y `--color-peligro`.
 
+**Sincronización con Drive**
+- Capas: `sincronizacion.js` (puro: fusión, purga, archivo y texto del estado; Node), `drive.js` (cliente `fetch` de Drive v3, con `fetch` y token inyectables; Node), `sincronizador.js` (orquesta cuándo sincronizar y publica el estado; navegador con dobles) y `estado-sincronizacion.js` (icono de la cabecera y sección de Ajustes).
+- El sincronizador no importa `auth.js`: recibe `auth` (`sesionActual`, `tokenVigente`, `renovarToken`, `olvidarToken`, `esEmailAutorizado`) inyectado. La instancia de la app (`sincronizador`) se crea en `ui.js`.
+- Las constantes de Drive (`DRIVE_SCOPE`, `DRIVE_CARPETA`…) viven en `constantes.js`, no en `config.js`.
+- Cualquier escritura nueva en `storage.js` que haga el usuario debe emitir `cambiosLocales` ('cambio'); lo que llega de Drive se guarda con `guardarSincronizados`, que no avisa y conserva `actualizado`.
+- Abrir la ventana de Google (renovar el token) solo desde un gesto del usuario.
+
 **Pruebas de navegador** (`tests/navegador/`)
 - Imports tolerantes (`await import(...).catch(() => ({}))`), para que en rojo falle cada prueba por separado y no la página entera.
 - `antesDeCada` se aplica a las pruebas registradas **después** de llamarlo: cada archivo declara el suyo.
@@ -64,6 +71,8 @@ Antes de dar una tarea por terminada: `npm test` y `npm run test:navegador` en v
 **Entorno (Windows + Git Bash)**
 - En Git Bash, un argumento que empieza por `/` (o `#/`) se convierte en una ruta de Windows (`C:/Program Files/Git/...`). Usa `MSYS_NO_PATHCONV=1` o escribe las rutas sin barra inicial.
 - `npm test` usa el glob `"tests/*.test.js"`: con un directorio, Node 24 falla y además entraría en `tests/navegador/`.
+- Algunos archivos usan finales de línea **CRLF** (`auth.js`, `config.js`, `productos.js`, `router.js`, `utils.js`, `formulario.test.js`, `runner.js`…; compruébalo con `file`). Un reemplazo por script con textos de varias líneas no encuentra nada en ellos y, si no se comprueba, falla **sin avisar**: edítalos con la herramienta de edición, o haz que el script lance un error si no encuentra el texto.
+- Los *heredoc* largos en Bash a veces llegan cortados. Para scripts de más de unas líneas, escríbelos en un archivo del scratchpad y ejecútalo.
 
 **Despliegue**
 - GitHub Pages sirve con `Cache-Control: max-age=600`. Por eso el Service Worker precarga con `cache: 'reload'`. No lo quites, o tras un despliegue se pueden mezclar archivos viejos y nuevos.
