@@ -93,6 +93,16 @@ prueba('sincronizado: sin marca de aviso', () => {
   verdadero(boton.querySelector('[data-icono="sincronizar"]'));
 });
 
+prueba('el icono no muestra texto suelto en ningún estado', () => {
+  const estados = [{}, { pendiente: true }, { enLinea: false }, { fase: 'sincronizando' }, { tokenVigente: false }];
+  for (const estado of estados) {
+    const boton = montarBoton(estado);
+    igual(boton.textContent.trim(), '', JSON.stringify(estado));
+  }
+  sinc.publicar({ pendiente: false });
+  igual(zona.querySelector('button').textContent.trim(), '', 'tras actualizarse');
+});
+
 prueba('error y sin token: marca de aviso', () => {
   verdadero(montarBoton({ fase: 'error', error: 'x' }).querySelector('.sync__aviso'));
   verdadero(montarBoton({ tokenVigente: false }).querySelector('.sync__aviso'));

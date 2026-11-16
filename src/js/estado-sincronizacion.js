@@ -34,11 +34,13 @@ export function crearBotonSincronizacion({ sincronizador }) {
 
   seguirEstado(sincronizador, elemento, (estado) => {
     const sinConexion = !estado.enLinea;
-    elemento.replaceChildren(
+    // replaceChildren convierte en texto lo que no es un nodo: nada de `false` aquí.
+    const hijos = [
       el('span', { class: 'sync__icono', 'data-icono': sinConexion ? 'sin-conexion' : 'sincronizar' },
         icono(sinConexion ? ICONOS.sinConexion : ICONOS.sincronizar)),
-      CON_AVISO.has(estado.texto) && el('span', { class: 'sync__aviso', 'aria-hidden': 'true' }),
-    );
+    ];
+    if (CON_AVISO.has(estado.texto)) hijos.push(el('span', { class: 'sync__aviso', 'aria-hidden': 'true' }));
+    elemento.replaceChildren(...hijos);
     elemento.classList.toggle('sync--girando', estado.fase === 'sincronizando');
     elemento.setAttribute('aria-label', `Sincronizar: ${estado.texto}`);
     elemento.disabled = !sePuedePedir(estado);

@@ -66,7 +66,9 @@ export function crearPantallaDetalle({
       }
     });
 
-    elemento.replaceChildren(
+    // replaceChildren convierte en texto lo que no es un nodo: se quitan los vacíos (sin
+    // notas, `producto.notas && …` es null y se vería "null").
+    elemento.replaceChildren(...[
       foto(producto),
       el('h2', { class: 'detalle__nombre', text: producto.nombre }),
       el('div', { class: `detalle__caducidad urgencia--${nivelUrgencia(dias)}` },
@@ -84,7 +86,7 @@ export function crearPantallaDetalle({
         el('a', { href: `#/producto/${encodeURIComponent(id)}/editar`, class: 'btn btn--secundario btn--bloque' },
           icono(ICONOS.editar), el('span', { text: 'Editar' })),
         eliminar),
-    );
+    ].filter(Boolean));
   }
 
   async function cargar() {

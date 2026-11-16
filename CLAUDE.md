@@ -50,6 +50,7 @@ Antes de dar una tarea por terminada: `npm test` y `npm run test:navegador` en v
 - Cada pantalla vive en su módulo y se crea con `crear…({ dependencias })` → `{ elemento, cargado }`. `elemento` se entrega al router enseguida y `cargado` es la promesa de la primera carga, que usan las pruebas. Las dependencias (almacenamiento, navegación, `hoy`, `confirmar`) tienen valores por defecto reales y se sustituyen en las pruebas. Los módulos de pantalla no importan `ui.js`, `auth.js` ni `config.js`.
 - Si hace falta un "reinicio" para las pruebas (filtro, borradores, base de datos), se exporta una función explícita (`reiniciarFiltro`, `descartarBorradores`, `usarBaseDeDatos`) que la app no usa.
 - Confirmaciones con `confirmar()` de `src/js/dialogo.js`, nunca `window.confirm()`. Los textos siempre con `textContent`/`el()`, nunca `innerHTML`.
+- `el()` ignora los hijos `null`/`false` (vale `cond && el(...)`), pero `append()` y `replaceChildren()` **los pintan como texto** ("false", "null"). Con ellos, filtra antes (`[...].filter(Boolean)`). Las pruebas de pantalla comprueban que no queda texto suelto.
 - Contraste: el texto blanco sobre los colores de urgencia o sobre `#EF4444` no llega a 4,5:1. Usa los tokens `--color-urgencia-*-texto`/`-suave` y `--color-peligro`.
 
 **Pruebas de navegador** (`tests/navegador/`)

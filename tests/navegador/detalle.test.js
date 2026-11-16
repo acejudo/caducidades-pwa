@@ -107,6 +107,9 @@ prueba('Sin fecha de compra ni notas', async () => {
   const raiz = await montar(p.id);
   verdadero(!textoDe(raiz).includes('Comprado'), 'sobra la fecha de compra');
   igual(raiz.querySelector('.detalle__notas'), null, 'sobra la sección de notas');
+  const textoSuelto = [...raiz.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE).map((n) => n.textContent);
+  igualProfundo(textoSuelto, [], 'sin texto suelto ("null")');
+  verdadero(!/\b(null|false|undefined)\b/.test(textoDe(raiz)), textoDe(raiz));
 });
 
 prueba('Producto caducado', async () => {
