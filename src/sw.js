@@ -4,7 +4,7 @@
 // del commit, así que cada despliegue invalida la caché. En local, súbela a mano si
 // necesitas forzar la actualización. Añade a SHELL_FILES cualquier archivo nuevo del
 // shell: si un archivo de la lista no existe, el SW no se instala.
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 
 const CACHE_PREFIJO = 'caducidades-shell-';
 const CACHE_NOMBRE = `${CACHE_PREFIJO}${CACHE_VERSION}`;
@@ -38,6 +38,7 @@ const SHELL_FILES = [
   './js/auth.js',
   './js/storage.js',
   './js/drive.js',
+  './js/fotos-reales.js',
   './img/predeterminadas/yogur.svg',
   './img/predeterminadas/leche.svg',
   './img/predeterminadas/queso.svg',

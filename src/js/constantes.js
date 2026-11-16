@@ -15,3 +15,7 @@ export const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive';
 export const DRIVE_CARPETA = 'Caducidades';
 export const DRIVE_ARCHIVO = 'caducidades.json';
 export const DRIVE_CARPETA_FOTOS = 'fotos';
+
+// Tamaño máximo de una foto descargada de Drive (las de la app rondan los 100–200 KB).
+export const FOTO_MAX_BYTES = 5 * 1024 * 1024;
+export const TIPOS_FOTO_REAL = Object.freeze(['image/webp', 'image/jpeg']);

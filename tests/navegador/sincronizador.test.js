@@ -46,7 +46,9 @@ function producto(id, cambios = {}) {
 // defecto, la propia cuenta (a@example.com).
 const PROPIA = 'a@example.com';
 function crearDriveFalso() {
-  const archivos = new Map(); // id → { texto, version, createdTime, ownedByMe, owners }
+  const archivos = new Map(); // id → { texto, version, createdTime, ownedByMe, owners, carpeta }
+  const carpetasFotos = new Map(); // carpeta de la lista → id de su subcarpeta fotos
+  const fotos = new Map(); // id → { name, blob, createdTime, ownedByMe, carpeta, trashed, noValida }
   const accesos = []; // 'leer:<id>', 'escribir:<id>'... para saber qué archivos se tocan
   const fallos = {}; // método → error que lanza la próxima llamada
   const ganchos = {}; // método → función que se ejecuta tras la llamada (una vez)
@@ -79,7 +81,7 @@ function crearDriveFalso() {
     buscarListas: () => llamar('buscarListas', () => [...archivos.entries()]
       .sort(([, a], [, b]) => a.createdTime.localeCompare(b.createdTime))
       .map(([id, a]) => ({
-        id, createdTime: a.createdTime, version: String(a.version), ownedByMe: a.ownedByMe, owners: a.owners,
+        id, createdTime: a.createdTime, version: String(a.version), ownedByMe: a.ownedByMe, owners: a.owners, parents: [a.carpeta],
       }))),
     leer: (id) => llamar('leer', () => ({ texto: archivo(id).texto, version: String(archivo(id).version) }), id),
     version: (id) => llamar('version', () => String(archivo(id).version), id),
@@ -92,9 +94,37 @@ function crearDriveFalso() {
     crearLista: (texto) => llamar('crearLista', () => {
       contador += 1;
       const id = `creada-${contador}`;
-      archivos.set(id, { texto, version: 1, createdTime: AHORA.toISOString(), ownedByMe: true, owners: [{ emailAddress: PROPIA }] });
+      archivos.set(id, { texto, version: 1, createdTime: AHORA.toISOString(), ownedByMe: true, owners: [{ emailAddress: PROPIA }], carpeta: 'carpeta-creada' });
       return { id, version: '1' };
     }),
+    // Fotos (fotos-reales).
+    carpetaDeLista: (id) => llamar('carpetaDeLista', () => archivo(id).carpeta, id),
+    buscarCarpetaFotos: (carpeta) => llamar('buscarCarpetaFotos', () => carpetasFotos.get(carpeta) ?? null),
+    crearCarpetaFotos: (carpeta) => llamar('crearCarpetaFotos', () => {
+      const id = `fotos-de-${carpeta}`;
+      carpetasFotos.set(carpeta, id);
+      return id;
+    }),
+    listarFotos: (carpetaFotos) => llamar('listarFotos', () => [...fotos.entries()]
+      .filter(([, x]) => x.carpeta === carpetaFotos && !x.trashed)
+      .map(([id, x]) => ({ id, name: x.name, createdTime: x.createdTime, ownedByMe: x.ownedByMe }))),
+    subirFoto: (carpetaFotos, nombre, blob) => llamar('subirFoto', () => {
+      contador += 1;
+      const id = `foto-${contador}`;
+      fotos.set(id, { name: nombre, blob, createdTime: AHORA.toISOString(), ownedByMe: true, carpeta: carpetaFotos });
+      return id;
+    }),
+    descargarFoto: (id) => llamar('descargarFoto', () => {
+      const x = fotos.get(id);
+      if (!x || x.trashed) throw new drive.ErrorNoDisponible(404);
+      if (x.noValida) throw new drive.ErrorFotoNoValida('tipo text/html');
+      return x.blob;
+    }, id),
+    papeleraFoto: (id) => llamar('papeleraFoto', () => {
+      const x = fotos.get(id);
+      if (!x.ownedByMe) throw new drive.ErrorNoDisponible(403);
+      x.trashed = true;
+    }, id),
   };
 
   return {
@@ -112,8 +142,19 @@ function crearDriveFalso() {
         createdTime,
         ownedByMe: dueno === PROPIA,
         owners: dueno ? [{ emailAddress: dueno }] : undefined,
+        carpeta: `carpeta-${id}`,
       });
     },
+    // Pone una foto en la subcarpeta fotos de la carpeta `carpeta` (la crea si hace falta).
+    ponerFoto(carpeta, nombre, { blob = new Blob(['img'], { type: 'image/webp' }), createdTime = '2026-11-01T00:00:00.000Z', ownedByMe = true, noValida = false } = {}) {
+      if (!carpetasFotos.has(carpeta)) carpetasFotos.set(carpeta, `fotos-de-${carpeta}`);
+      contador += 1;
+      fotos.set(`foto-${contador}`, { name: nombre, blob, createdTime, ownedByMe, carpeta: carpetasFotos.get(carpeta), noValida });
+    },
+    // Nombres de las fotos (fuera de la papelera) de la carpeta de fotos de `carpeta`.
+    fotosEn: (carpeta) => [...fotos.values()]
+      .filter((x) => x.carpeta === carpetasFotos.get(carpeta) && !x.trashed).map((x) => x.name).sort(),
+    carpetasFotos,
     productos: (id) => JSON.parse(archivos.get(id).texto).productos,
     archivos,
   };
@@ -583,4 +624,184 @@ prueba('la lista compartida en automático solo se pregunta una vez por sesión'
   igual(confirmaciones.length, 1);
   await sinc.sincronizar({ aPeticion: true });
   igual(confirmaciones.length, 2, 'a petición sí pregunta');
+});
+
+// ---------- Fotos reales (fotos-reales) ----------
+
+const F1 = '11111111-1111-4111-8111-111111111111.webp';
+const F2 = '22222222-2222-4222-8222-222222222222.webp';
+const fotoReal = (nombre) => ({ tipo: 'real', valor: nombre });
+const imagen = (texto = 'img') => new Blob([texto], { type: 'image/webp' });
+
+// Un producto con foto real hecho en este dispositivo (la foto aún no está en Drive).
+async function altaConFoto(nombre = F1) {
+  await storage.guardarFoto(nombre, imagen());
+  return storage.crearProducto({ nombre: 'Tarta', fechaCaducidad: '2026-11-20', foto: fotoReal(nombre) });
+}
+
+const fotosLocales = async () => (await storage.listarFotos()).map(({ nombre, subida }) => ({ nombre, subida }));
+
+prueba('Primera foto en una lista compartida', async () => {
+  driveFalso.poner('de-A', [], undefined, 'ana@example.com');
+  await altaConFoto();
+  await crear().sincronizar();
+  igualProfundo(driveFalso.fotosEn('carpeta-de-A'), [F1], 'la foto está en la carpeta de fotos de la lista de A');
+  igual(driveFalso.carpetasFotos.get('carpeta-de-A'), 'fotos-de-carpeta-de-A', 'se creó la subcarpeta fotos');
+  igualProfundo(await fotosLocales(), [{ nombre: F1, subida: true }]);
+  igual(estado().texto, 'Sincronizado');
+});
+
+prueba('Sin fotos reales', async () => {
+  driveFalso.poner('mia', [producto('a'), producto('b', { foto: { tipo: 'predeterminada', valor: 'leche' } })]);
+  await crear().sincronizar();
+  for (const metodo of ['carpetaDeLista', 'buscarCarpetaFotos', 'crearCarpetaFotos', 'listarFotos']) {
+    igual(driveFalso.llamadas.includes(metodo), false, `no debería llamar a ${metodo}`);
+  }
+  igual(estado().texto, 'Sincronizado');
+});
+
+prueba('Alta con foto real', async () => {
+  driveFalso.poner('mia', []);
+  crear();
+  await sinc.iniciar();
+  await altaConFoto();
+  igual(estado().pendiente, true);
+  temporizador.avanzar();
+  await sinc.terminado();
+  igualProfundo(driveFalso.fotosEn('carpeta-mia'), [F1]);
+  igualProfundo(driveFalso.productos('mia').map((p) => p.foto), [fotoReal(F1)]);
+  igual(estado().texto, 'Sincronizado');
+});
+
+prueba('Sin conexión: la foto se sube al volver la conexión', async () => {
+  driveFalso.poner('mia', []);
+  crear();
+  await sinc.iniciar();
+  red.poner(false);
+  await altaConFoto();
+  temporizador.avanzar();
+  await sinc.terminado();
+  igual(estado().texto, 'Sin conexión');
+  igual(estado().pendiente, true);
+  igualProfundo(driveFalso.fotosEn('carpeta-mia'), []);
+  red.poner(true);
+  red.objetivo.dispatchEvent(new Event('online'));
+  await sinc.terminado();
+  igualProfundo(driveFalso.fotosEn('carpeta-mia'), [F1]);
+  igual(estado().texto, 'Sincronizado');
+});
+
+prueba('Falla la subida', async () => {
+  driveFalso.poner('mia', []);
+  await altaConFoto();
+  driveFalso.fallar('subirFoto', new drive.ErrorRed(new Error('sin red')));
+  crear();
+  await sinc.sincronizar();
+  igual(estado().texto, 'Error al sincronizar');
+  igual(estado().error, sincronizador.MENSAJES.red);
+  igual(estado().pendiente, true, 'quedan cambios pendientes');
+  igualProfundo(await fotosLocales(), [{ nombre: F1, subida: false }]);
+  igualProfundo(driveFalso.productos('mia').map((p) => p.nombre), ['Tarta'], 'la lista sí se sincronizó');
+  await sinc.sincronizar();
+  igualProfundo(driveFalso.fotosEn('carpeta-mia'), [F1], 'se reintenta');
+  igualProfundo(await fotosLocales(), [{ nombre: F1, subida: true }]);
+  igual(estado().texto, 'Sincronizado');
+});
+
+prueba('Foto hecha en otro dispositivo', async () => {
+  driveFalso.poner('mia', [producto('q', { nombre: 'Queso', foto: fotoReal(F1) })]);
+  driveFalso.ponerFoto('carpeta-mia', F1, { blob: imagen('foto del queso') });
+  await crear().sincronizar();
+  igualProfundo(await nombres(), ['Queso']);
+  igual(await (await storage.obtenerFoto(F1))?.text(), 'foto del queso');
+  igualProfundo(await fotosLocales(), [{ nombre: F1, subida: true }]);
+  igual(driveFalso.llamadas.includes('subirFoto'), false, 'no la vuelve a subir');
+  igual(estado().texto, 'Sincronizado');
+});
+
+prueba('Foto aún no subida', async () => {
+  driveFalso.poner('mia', [producto('q', { nombre: 'Queso', foto: fotoReal(F1) })]);
+  await crear().sincronizar();
+  igualProfundo(await nombres(), ['Queso']);
+  igual(await storage.obtenerFoto(F1), null);
+  igual(estado().texto, 'Sincronizado');
+  // Más tarde el otro dispositivo la sube: se descarga en la siguiente sincronización.
+  driveFalso.ponerFoto('carpeta-mia', F1);
+  await sinc.sincronizar();
+  verdadero(await storage.obtenerFoto(F1), 'se descarga después');
+});
+
+prueba('Archivo no válido', async () => {
+  driveFalso.poner('mia', [producto('q', { nombre: 'Queso', foto: fotoReal(F1) })]);
+  driveFalso.ponerFoto('carpeta-mia', F1, { noValida: true });
+  await crear().sincronizar();
+  igual(await storage.obtenerFoto(F1), null);
+  igual(estado().texto, 'Sincronizado');
+});
+
+prueba('una descarga que falla por la red no impide las demás', async () => {
+  driveFalso.poner('mia', [producto('a', { foto: fotoReal(F1) }), producto('b', { foto: fotoReal(F2) })]);
+  driveFalso.ponerFoto('carpeta-mia', F1);
+  driveFalso.ponerFoto('carpeta-mia', F2);
+  driveFalso.fallar('descargarFoto', new drive.ErrorRed(new Error('corte')));
+  await crear().sincronizar();
+  const descargadas = [await storage.obtenerFoto(F1), await storage.obtenerFoto(F2)].filter(Boolean).length;
+  igual(descargadas, 1);
+  igual(estado().texto, 'Sincronizado');
+});
+
+prueba('Foto cambiada', async () => {
+  // Hace dos días se cambió F1 por F2: F1 ya no la usa ningún producto.
+  const dentroDeDosDias = new Date(Date.now() + 2 * 86_400_000);
+  driveFalso.poner('mia', [producto('a', { foto: fotoReal(F2) })]);
+  driveFalso.ponerFoto('carpeta-mia', F1);
+  driveFalso.ponerFoto('carpeta-mia', F2);
+  await storage.guardarFoto(F1, imagen(), { subida: true });
+  await storage.guardarFoto(F2, imagen(), { subida: true });
+  prefs.escribir({ archivoId: 'mia', carpetaId: 'carpeta-mia', pendiente: false, ultima: null });
+  await crear({ ahora: () => dentroDeDosDias }).sincronizar();
+  igualProfundo((await fotosLocales()).map((f) => f.nombre), [F2]);
+  igualProfundo(driveFalso.fotosEn('carpeta-mia'), [F2]);
+});
+
+prueba('Foto de otra cuenta', async () => {
+  const dentroDeDosDias = new Date(Date.now() + 2 * 86_400_000);
+  driveFalso.poner('mia', [producto('a', { foto: fotoReal(F1) })]);
+  driveFalso.ponerFoto('carpeta-mia', F1);
+  driveFalso.ponerFoto('carpeta-mia', F2); // sin usar y propia, pero Drive rechaza borrarla
+  await storage.guardarFoto(F1, imagen(), { subida: true });
+  driveFalso.fallar('papeleraFoto', new drive.ErrorNoDisponible(403));
+  await crear({ ahora: () => dentroDeDosDias }).sincronizar();
+  igualProfundo(driveFalso.fotosEn('carpeta-mia'), [F1, F2]);
+  igual(estado().texto, 'Sincronizado');
+});
+
+prueba('la carpeta de la lista se pide si solo se recordaba el archivo', async () => {
+  driveFalso.poner('mia', []);
+  prefs.escribir({ archivoId: 'mia', pendiente: true, ultima: null });
+  await altaConFoto();
+  crear();
+  await sinc.sincronizar();
+  verdadero(driveFalso.llamadas.includes('carpetaDeLista'), 'pide la carpeta');
+  igual(prefs.leer().carpetaId, 'carpeta-mia', 'la recuerda');
+  igualProfundo(driveFalso.fotosEn('carpeta-mia'), [F1]);
+  driveFalso.llamadas.length = 0;
+  await sinc.sincronizar();
+  igual(driveFalso.llamadas.includes('carpetaDeLista'), false, 'no la vuelve a pedir');
+});
+
+prueba('al localizar la lista se recuerda su carpeta', async () => {
+  driveFalso.poner('mia', []);
+  await altaConFoto();
+  await crear().sincronizar();
+  igual(prefs.leer().carpetaId, 'carpeta-mia');
+  igual(driveFalso.llamadas.includes('carpetaDeLista'), false);
+});
+
+prueba('token rechazado al descargar una foto: se olvida el token', async () => {
+  driveFalso.poner('mia', [producto('q', { foto: fotoReal(F1) })]);
+  driveFalso.ponerFoto('carpeta-mia', F1);
+  driveFalso.fallar('descargarFoto', new drive.ErrorToken());
+  await crear().sincronizar();
+  igual(auth.olvidados, 1);
 });

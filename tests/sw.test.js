@@ -59,3 +59,14 @@ test('las fotos predeterminadas están en el shell', async () => {
     assert.ok(shell.includes(`./img/predeterminadas/${id}.svg`), `falta ${id}.svg en SHELL_FILES`);
   }
 });
+
+test('todos los módulos de src/js están en el shell (salvo el ejemplo de configuración)', async () => {
+  const { readdirSync } = await import('node:fs');
+  const { shell } = await instalar();
+  const modulos = readdirSync(new URL('../src/js/', import.meta.url))
+    .filter((nombre) => nombre.endsWith('.js') && nombre !== 'config.local.example.js');
+  for (const nombre of modulos) {
+    assert.ok(shell.includes(`./js/${nombre}`), `falta ./js/${nombre} en SHELL_FILES`);
+  }
+  assert.ok(shell.includes('./js/fotos-reales.js'), 'falta ./js/fotos-reales.js en SHELL_FILES');
+});

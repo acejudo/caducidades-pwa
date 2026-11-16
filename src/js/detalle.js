@@ -2,21 +2,20 @@
 // Spec: openspec/specs/product-detail. No importa ui.js, auth.js ni config.js, para poder
 // probarse sin config.local.js (tests/navegador/detalle.test.js).
 
-import { obtenerProducto, eliminarProducto } from './storage.js';
+import { obtenerProducto, eliminarProducto, obtenerFoto } from './storage.js';
 import { diasRestantes, nivelUrgencia, textoCaducidad } from './productos.js';
 import { formatearFecha, formatearCantidad } from './formato.js';
-import { fotoDeProducto } from './fotos.js';
+import { pintarFoto } from './fotos-reales.js';
 import { ICONOS } from './iconos.js';
 import { reemplazar } from './router.js';
 import { confirmar as confirmarDialogo } from './dialogo.js';
 import { el, icono } from './utils.js';
 
-function foto(producto) {
-  const predeterminada = fotoDeProducto(producto);
-  return el('div', { class: 'detalle__foto' },
-    predeterminada
-      ? el('img', { src: predeterminada.url, alt: '', width: 160, height: 160 })
-      : icono(ICONOS.producto));
+// La foto en grande: la del catálogo, la real (en cuanto se lee) o el icono genérico.
+function foto(producto, leerFoto) {
+  const contenedor = el('div', { class: 'detalle__foto' });
+  pintarFoto(contenedor, producto, { obtenerFoto: leerFoto, ancho: 160, alto: 160 });
+  return contenedor;
 }
 
 function dato(etiqueta, valor) {
@@ -29,11 +28,13 @@ function dato(etiqueta, valor) {
 // pantallas; las dependencias se sustituyen en las pruebas (design.md §6).
 export function crearPantallaDetalle({
   id,
-  almacen = { obtenerProducto, eliminarProducto },
+  almacen: almacenInyectado = {},
   navegacion = { reemplazar },
   confirmar = confirmarDialogo,
   hoy = () => new Date(),
 } = {}) {
+  // Las pruebas sustituyen solo las operaciones que les interesan.
+  const almacen = { obtenerProducto, eliminarProducto, obtenerFoto, ...almacenInyectado };
   const elemento = el('section', { class: 'detalle' });
 
   function pintarEstado(titulo, accion) {
@@ -69,7 +70,7 @@ export function crearPantallaDetalle({
     // replaceChildren convierte en texto lo que no es un nodo: se quitan los vacíos (sin
     // notas, `producto.notas && …` es null y se vería "null").
     elemento.replaceChildren(...[
-      foto(producto),
+      foto(producto, almacen.obtenerFoto),
       el('h2', { class: 'detalle__nombre', text: producto.nombre }),
       el('div', { class: `detalle__caducidad urgencia--${nivelUrgencia(dias)}` },
         el('span', { class: 'detalle__fecha', text: `Caduca el ${formatearFecha(producto.fechaCaducidad)}` }),

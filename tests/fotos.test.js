@@ -53,8 +53,18 @@ describe('Foto de un producto', () => {
     assert.equal(fotoDeProducto({ foto: { tipo: 'predeterminada', valor: 'kiwi' } }), null);
   });
 
-  test('Foto real todavía no disponible', () => {
+  test('Foto predeterminada: tipo', () => {
+    assert.equal(fotoDeProducto({ foto: { tipo: 'predeterminada', valor: 'leche' } }).tipo, 'predeterminada');
+  });
+
+  test('Foto real en el dispositivo', () => {
+    const nombre = '3f2b8c1e-9a4d-4e6f-8b2a-1c5d7e9f0a3b.webp';
+    assert.deepEqual(fotoDeProducto({ foto: { tipo: 'real', valor: nombre } }), { tipo: 'real', nombre });
+  });
+
+  test('Foto real con nombre no válido', () => {
     assert.equal(fotoDeProducto({ foto: { tipo: 'real', valor: 'abc.jpg' } }), null);
+    assert.equal(fotoDeProducto({ foto: { tipo: 'real', valor: '../caducidades.json' } }), null);
   });
 
   test('Sin foto', () => {

@@ -1,9 +1,10 @@
-// Cliente de Google Drive API v3 con fetch, sin bibliotecas de Google (SPEC §4.2 y §7).
-// Spec: openspec/specs/drive-sync. Solo usa constantes.js (nunca config.js): se prueba
-// en Node con un fetch falso (tests/drive.test.js). Las fotos reales (subcarpeta
-// `fotos/`) llegarán con el cambio fotos-reales.
+// Cliente de Google Drive API v3 con fetch, sin bibliotecas de Google (SPEC §4.2, §4.3 y
+// §7). Spec: openspec/specs/drive-sync. Solo usa constantes.js (nunca config.js): se
+// prueba en Node con un fetch falso (tests/drive.test.js).
 
-import { DRIVE_ARCHIVO, DRIVE_CARPETA } from './constantes.js';
+import {
+  DRIVE_ARCHIVO, DRIVE_CARPETA, DRIVE_CARPETA_FOTOS, FOTO_MAX_BYTES, TIPOS_FOTO_REAL,
+} from './constantes.js';
 
 const API = 'https://www.googleapis.com/drive/v3/files';
 const SUBIDA = 'https://www.googleapis.com/upload/drive/v3/files';
@@ -34,6 +35,14 @@ export class ErrorNoDisponible extends Error {
   }
 }
 
+// Lo descargado como foto no es una imagen WebP o JPEG o pasa del tamaño máximo.
+export class ErrorFotoNoValida extends Error {
+  constructor(motivo) {
+    super(`La foto de Drive no es válida: ${motivo}`);
+    this.name = 'ErrorFotoNoValida';
+  }
+}
+
 export class ErrorDrive extends Error {
   constructor(estado) {
     super(`Google Drive respondió ${estado}`);
@@ -43,6 +52,30 @@ export class ErrorDrive extends Error {
 }
 
 const url = (base, parametros = {}) => `${base}?${new URLSearchParams(parametros)}`;
+
+// Un valor entre comillas simples para las consultas `q` de Drive.
+const literal = (valor) => `'${String(valor).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
+
+// Cuerpo multipart/related (metadatos JSON + contenido) para las subidas de Drive. El
+// contenido puede ser texto o un Blob (las fotos van sin tocar sus bytes).
+function multipart(metadatos, tipo, contenido) {
+  const limite = `caducidades-${Math.random().toString(36).slice(2)}`;
+  const cabecera = [
+    `--${limite}`,
+    'Content-Type: application/json; charset=UTF-8',
+    '',
+    JSON.stringify(metadatos),
+    `--${limite}`,
+    `Content-Type: ${tipo}`,
+    '',
+    '',
+  ].join('\r\n');
+  const cierre = `\r\n--${limite}--\r\n`;
+  return {
+    tipoContenido: `multipart/related; boundary=${limite}`,
+    cuerpo: typeof contenido === 'string' ? cabecera + contenido + cierre : new Blob([cabecera, contenido, cierre]),
+  };
+}
 
 // `token()` devuelve el access token vigente. `fetch` se sustituye en las pruebas.
 export function crearClienteDrive({ token, fetch = globalThis.fetch.bind(globalThis) }) {
@@ -88,7 +121,7 @@ export function crearClienteDrive({ token, fetch = globalThis.fetch.bind(globalT
     // con su dueño: el sincronizador solo acepta los de cuentas autorizadas.
     async buscarListas() {
       const q = `name = '${DRIVE_ARCHIVO}' and trashed = false and mimeType != '${TIPO_CARPETA}'`;
-      const fields = 'files(id,createdTime,version,ownedByMe,owners(emailAddress))';
+      const fields = 'files(id,createdTime,version,ownedByMe,owners(emailAddress),parents)';
       const { files = [] } = await pedirJson(url(API, { q, orderBy: 'createdTime', fields }));
       return files;
     },
@@ -115,26 +148,94 @@ export function crearClienteDrive({ token, fetch = globalThis.fetch.bind(globalT
     // Crea caducidades.json dentro de la carpeta Caducidades de la raíz (la crea si no existe).
     async crearLista(texto) {
       const carpeta = (await buscarCarpeta()) ?? (await crearCarpeta());
-      const limite = `caducidades-${Math.random().toString(36).slice(2)}`;
       const metadatos = { name: DRIVE_ARCHIVO, mimeType: 'application/json', parents: [carpeta] };
-      const cuerpo = [
-        `--${limite}`,
-        'Content-Type: application/json; charset=UTF-8',
-        '',
-        JSON.stringify(metadatos),
-        `--${limite}`,
-        'Content-Type: application/json',
-        '',
-        texto,
-        `--${limite}--`,
-        '',
-      ].join('\r\n');
+      const { tipoContenido, cuerpo } = multipart(metadatos, 'application/json', texto);
       const { id, version: versionNueva } = await pedirJson(url(SUBIDA, { uploadType: 'multipart', fields: 'id,version' }), {
         method: 'POST',
-        headers: { 'Content-Type': `multipart/related; boundary=${limite}` },
+        headers: { 'Content-Type': tipoContenido },
         body: cuerpo,
       });
       return { id, version: versionNueva };
+    },
+
+    // ---------- Fotos reales (fotos-reales, design.md §5) ----------
+
+    // Carpeta que contiene un archivo (la de la lista): ahí va la subcarpeta de fotos.
+    async carpetaDeLista(archivoId) {
+      const { parents = [] } = await pedirJson(url(`${API}/${encodeURIComponent(archivoId)}`, { fields: 'parents' }), {}, { deArchivo: true });
+      return parents[0] ?? null;
+    },
+
+    // Subcarpeta "fotos" (la más antigua) dentro de `carpetaId`, o null.
+    async buscarCarpetaFotos(carpetaId) {
+      const q = `name = '${DRIVE_CARPETA_FOTOS}' and mimeType = '${TIPO_CARPETA}' and ${literal(carpetaId)} in parents and trashed = false`;
+      const { files = [] } = await pedirJson(url(API, { q, fields: 'files(id)', orderBy: 'createdTime' }));
+      return files[0]?.id ?? null;
+    },
+
+    async crearCarpetaFotos(carpetaId) {
+      const { id } = await pedirJson(url(API, { fields: 'id' }), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: DRIVE_CARPETA_FOTOS, mimeType: TIPO_CARPETA, parents: [carpetaId] }),
+      });
+      return id;
+    },
+
+    // Todos los archivos de la carpeta de fotos (fuera de la papelera), página a página.
+    async listarFotos(carpetaFotosId) {
+      const q = `${literal(carpetaFotosId)} in parents and trashed = false and mimeType != '${TIPO_CARPETA}'`;
+      const fotos = [];
+      let pageToken = null;
+      do {
+        const parametros = { q, fields: 'nextPageToken,files(id,name,createdTime,ownedByMe)', pageSize: '1000' };
+        if (pageToken) parametros.pageToken = pageToken;
+        const { files = [], nextPageToken } = await pedirJson(url(API, parametros));
+        fotos.push(...files);
+        pageToken = nextPageToken ?? null;
+      } while (pageToken);
+      return fotos;
+    },
+
+    // Sube la imagen tal cual con su nombre; devuelve el id del archivo.
+    async subirFoto(carpetaFotosId, nombre, blob) {
+      const tipo = blob.type || 'application/octet-stream';
+      const { tipoContenido, cuerpo } = multipart({ name: nombre, mimeType: tipo, parents: [carpetaFotosId] }, tipo, blob);
+      const { id } = await pedirJson(url(SUBIDA, { uploadType: 'multipart', fields: 'id' }), {
+        method: 'POST',
+        headers: { 'Content-Type': tipoContenido },
+        body: cuerpo,
+      });
+      return id;
+    },
+
+    // Descarga una foto. Solo acepta WebP o JPEG de FOTO_MAX_BYTES como máximo: si la
+    // cabecera ya indica más, no se lee el cuerpo.
+    async descargarFoto(id) {
+      const respuesta = await pedir(url(`${API}/${encodeURIComponent(id)}`, { alt: 'media' }), {}, { deArchivo: true });
+      const tipo = (respuesta.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
+      const cancelar = () => respuesta.body?.cancel().catch(() => {});
+      if (!TIPOS_FOTO_REAL.includes(tipo)) {
+        cancelar();
+        throw new ErrorFotoNoValida(`tipo ${tipo || 'desconocido'}`);
+      }
+      if (Number(respuesta.headers.get('content-length')) > FOTO_MAX_BYTES) {
+        cancelar();
+        throw new ErrorFotoNoValida('demasiado grande');
+      }
+      const datos = await respuesta.arrayBuffer();
+      if (datos.byteLength > FOTO_MAX_BYTES) throw new ErrorFotoNoValida('demasiado grande');
+      return new Blob([datos], { type: tipo });
+    },
+
+    // A la papelera (no se borra del todo: se puede recuperar). Una foto de otra cuenta
+    // suele rechazarse con 403 → ErrorNoDisponible.
+    async papeleraFoto(id) {
+      await pedir(url(`${API}/${encodeURIComponent(id)}`, { fields: 'id' }), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trashed: true }),
+      }, { deArchivo: true });
     },
   };
 }

@@ -161,3 +161,146 @@ describe('Errores de Drive', () => {
     await assert.rejects(sinRed.buscarListas(), ErrorRed);
   });
 });
+
+// ---------- Fotos reales (fotos-reales, design.md §5) ----------
+
+describe('Cliente de Drive: fotos', () => {
+  const FOTO = '3f2b8c1e-9a4d-4e6f-8b2a-1c5d7e9f0a3b.webp';
+  const { ErrorFotoNoValida } = drive;
+
+  test('buscarListas pide también la carpeta de cada lista', async () => {
+    regla(() => true, () => json({ files: [] }));
+    await cliente().buscarListas();
+    assert.match(peticiones[0].url.searchParams.get('fields'), /parents/);
+  });
+
+  test('carpetaDeLista devuelve la carpeta del archivo', async () => {
+    regla((p) => p.url.pathname === '/drive/v3/files/lista-1', () => json({ parents: ['carpeta-9'] }));
+    assert.equal(await cliente().carpetaDeLista('lista-1'), 'carpeta-9');
+    assert.equal(peticiones[0].url.searchParams.get('fields'), 'parents');
+  });
+
+  test('carpetaDeLista de un archivo que ya no está: ErrorNoDisponible', async () => {
+    regla(() => true, () => json({}, 404));
+    await assert.rejects(cliente().carpetaDeLista('lista-1'), ErrorNoDisponible);
+  });
+
+  test('buscarCarpetaFotos busca "fotos" dentro de la carpeta de la lista', async () => {
+    regla(() => true, () => json({ files: [{ id: 'fotos-1' }, { id: 'fotos-2' }] }));
+    assert.equal(await cliente().buscarCarpetaFotos('carpeta-9'), 'fotos-1');
+    const q = peticiones[0].url.searchParams.get('q');
+    assert.match(q, /name = 'fotos'/);
+    assert.match(q, /'carpeta-9' in parents/);
+    assert.match(q, new RegExp(`mimeType = '${CARPETA}'`));
+    assert.match(q, /trashed = false/);
+    assert.equal(peticiones[0].url.searchParams.get('orderBy'), 'createdTime');
+  });
+
+  test('buscarCarpetaFotos sin carpeta devuelve null', async () => {
+    regla(() => true, () => json({ files: [] }));
+    assert.equal(await cliente().buscarCarpetaFotos('carpeta-9'), null);
+  });
+
+  test('las comillas de un id no rompen la consulta', async () => {
+    regla(() => true, () => json({ files: [] }));
+    await cliente().buscarCarpetaFotos("o'Brien");
+    assert.ok(peticiones[0].url.searchParams.get('q').includes("'o\\'Brien' in parents"));
+  });
+
+  test('crearCarpetaFotos crea "fotos" dentro de la carpeta de la lista', async () => {
+    regla((p) => p.metodo === 'POST', () => json({ id: 'fotos-nueva' }));
+    assert.equal(await cliente().crearCarpetaFotos('carpeta-9'), 'fotos-nueva');
+    const [p] = peticiones;
+    assert.equal(p.url.pathname, '/drive/v3/files');
+    assert.deepEqual(JSON.parse(p.cuerpo), { name: 'fotos', mimeType: CARPETA, parents: ['carpeta-9'] });
+  });
+
+  test('listarFotos recorre todas las páginas', async () => {
+    regla((p) => !p.url.searchParams.get('pageToken'), () => json({
+      files: [{ id: '1', name: 'a.webp', createdTime: '2026-11-01T00:00:00Z', ownedByMe: true }],
+      nextPageToken: 'pagina-2',
+    }));
+    regla((p) => p.url.searchParams.get('pageToken') === 'pagina-2', () => json({
+      files: [{ id: '2', name: 'b.webp', createdTime: '2026-11-02T00:00:00Z', ownedByMe: false }],
+    }));
+    const fotos = await cliente().listarFotos('fotos-1');
+    assert.deepEqual(fotos.map((f) => f.id), ['1', '2']);
+    assert.equal(fotos[1].ownedByMe, false);
+    const [p] = peticiones;
+    assert.match(p.url.searchParams.get('q'), /'fotos-1' in parents/);
+    assert.match(p.url.searchParams.get('q'), /trashed = false/);
+    assert.match(p.url.searchParams.get('fields'), /nextPageToken/);
+    assert.match(p.url.searchParams.get('fields'), /files\(id,name,createdTime,ownedByMe\)/);
+    assert.equal(p.url.searchParams.get('pageSize'), '1000');
+  });
+
+  test('subirFoto manda los metadatos y los bytes de la imagen', async () => {
+    regla((p) => p.metodo === 'POST', () => json({ id: 'archivo-foto' }));
+    const blob = new Blob([new Uint8Array([0x52, 0x49, 0x46, 0x46, 0xff, 0x00])], { type: 'image/webp' });
+    assert.equal(await cliente().subirFoto('fotos-1', FOTO, blob), 'archivo-foto');
+    const [p] = peticiones;
+    assert.equal(p.url.origin + p.url.pathname, 'https://www.googleapis.com/upload/drive/v3/files');
+    assert.equal(p.url.searchParams.get('uploadType'), 'multipart');
+    const limite = p.cabeceras['content-type'].match(/^multipart\/related; boundary=(.+)$/)?.[1];
+    assert.ok(limite, 'falta el boundary');
+    const bytes = new Uint8Array(await new Response(p.cuerpo).arrayBuffer());
+    const texto = new TextDecoder('latin1').decode(bytes);
+    const metadatos = JSON.parse(texto.split('\r\n\r\n')[1].split('\r\n')[0]);
+    assert.deepEqual(metadatos, { name: FOTO, mimeType: 'image/webp', parents: ['fotos-1'] });
+    assert.match(texto, /Content-Type: image\/webp/);
+    const inicio = bytes.findIndex((b, i) => b === 0x52 && bytes[i + 1] === 0x49 && bytes[i + 2] === 0x46);
+    assert.deepEqual([...bytes.slice(inicio, inicio + 6)], [0x52, 0x49, 0x46, 0x46, 0xff, 0x00], 'los bytes van sin cambios');
+    assert.ok(texto.trimEnd().endsWith(`--${limite}--`));
+  });
+
+  test('subirFoto con el token rechazado: ErrorToken', async () => {
+    regla(() => true, () => json({}, 401));
+    await assert.rejects(cliente().subirFoto('fotos-1', FOTO, new Blob(['x'], { type: 'image/webp' })), ErrorToken);
+  });
+
+  test('descargarFoto devuelve la imagen', async () => {
+    regla((p) => p.url.searchParams.get('alt') === 'media', () => new Response(new Uint8Array([1, 2, 3]), { headers: { 'Content-Type': 'image/jpeg' } }));
+    const blob = await cliente().descargarFoto('archivo-foto');
+    assert.equal(blob.type, 'image/jpeg');
+    assert.deepEqual([...new Uint8Array(await blob.arrayBuffer())], [1, 2, 3]);
+    assert.equal(peticiones[0].url.pathname, '/drive/v3/files/archivo-foto');
+  });
+
+  test('descargarFoto rechaza lo que no es WebP ni JPEG', async () => {
+    regla(() => true, () => new Response('<html>', { headers: { 'Content-Type': 'text/html' } }));
+    await assert.rejects(cliente().descargarFoto('archivo-foto'), ErrorFotoNoValida);
+  });
+
+  test('descargarFoto rechaza más de 5 MB', async () => {
+    const grande = new Uint8Array(5 * 1024 * 1024 + 1);
+    regla(() => true, () => new Response(grande, { headers: { 'Content-Type': 'image/webp' } }));
+    await assert.rejects(cliente().descargarFoto('archivo-foto'), ErrorFotoNoValida);
+  });
+
+  test('descargarFoto rechaza por la cabecera de tamaño sin leer el cuerpo', async () => {
+    let leido = false;
+    // highWaterMark 0: sin él, el stream llama a pull al crearse aunque nadie lea.
+    const cuerpo = new ReadableStream({ pull(c) { leido = true; c.enqueue(new Uint8Array(1)); c.close(); } }, { highWaterMark: 0 });
+    regla(() => true, () => new Response(cuerpo, { headers: { 'Content-Type': 'image/webp', 'Content-Length': String(6 * 1024 * 1024) } }));
+    await assert.rejects(cliente().descargarFoto('archivo-foto'), ErrorFotoNoValida);
+    assert.equal(leido, false);
+  });
+
+  test('descargarFoto de un archivo que ya no está: ErrorNoDisponible', async () => {
+    regla(() => true, () => json({}, 404));
+    await assert.rejects(cliente().descargarFoto('archivo-foto'), ErrorNoDisponible);
+  });
+
+  test('papeleraFoto manda el archivo a la papelera', async () => {
+    regla((p) => p.metodo === 'PATCH', () => json({ id: 'archivo-foto' }));
+    await cliente().papeleraFoto('archivo-foto');
+    const [p] = peticiones;
+    assert.equal(p.url.pathname, '/drive/v3/files/archivo-foto');
+    assert.deepEqual(JSON.parse(p.cuerpo), { trashed: true });
+  });
+
+  test('papeleraFoto rechazada por Drive (foto de otra cuenta): ErrorNoDisponible', async () => {
+    regla(() => true, () => json({}, 403));
+    await assert.rejects(cliente().papeleraFoto('archivo-foto'), ErrorNoDisponible);
+  });
+});

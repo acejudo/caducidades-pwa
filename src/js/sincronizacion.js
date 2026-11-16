@@ -2,7 +2,7 @@
 // purgar y el texto del estado. Specs: openspec/specs/drive-sync y sync-status.
 // Sin DOM, sin red ni almacenamiento: se prueba en Node (tests/sincronizacion.test.js).
 
-import { normalizarProducto, validarProducto } from './productos.js';
+import { normalizarProducto, validarProducto, esNombreFotoReal } from './productos.js';
 
 export const VERSION_ARCHIVO = 1;
 // Las bajas con más días que estos se quitan del dispositivo y del archivo.
@@ -100,6 +100,57 @@ export function planificar(locales, remotos, ahora = new Date()) {
     idsPurgados,
     cambiaLocal: final !== huella(locales),
     hayQueSubir: final !== huella(remotos),
+  };
+}
+
+// ---------- Fotos reales (fotos-reales, design.md §6) ----------
+
+// Margen antes de borrar una foto sin usar: así no se borra una foto recién hecha que otro
+// dispositivo aún no ha anotado en la lista.
+export const MARGEN_FOTOS_MS = MS_POR_DIA;
+
+const porNombre = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+
+// Nombres de las fotos reales válidas de los productos (de todos, o solo de los activos).
+function nombresDeFotos(productos, { soloActivos }) {
+  const nombres = new Set();
+  for (const p of productos) {
+    if (soloActivos && p.eliminado) continue;
+    if (p.foto?.tipo === 'real' && esNombreFotoReal(p.foto.valor)) nombres.add(p.foto.valor);
+  }
+  return nombres;
+}
+
+// Qué hacer con las fotos al sincronizar:
+// - productos: el resultado fusionado de la lista (también los eliminados);
+// - locales: [{ nombre, subida, creada }] del dispositivo;
+// - remotas: [{ id, name, createdTime, ownedByMe }] de la carpeta de fotos de Drive.
+// Devuelve { subir, marcarSubidas, descargar: [{ nombre, id }], borrarLocales,
+// borrarRemotas: [id] }. Solo se tocan archivos con nombre de foto real válido, y en Drive
+// solo se borran los de la propia cuenta.
+export function planificarFotos({ productos, locales = [], remotas = [], ahora = new Date() }) {
+  const activas = nombresDeFotos(productos, { soloActivos: true });
+  const usadas = nombresDeFotos(productos, { soloActivos: false });
+  const limite = ahora.getTime() - MARGEN_FOTOS_MS;
+  const antigua = (fecha) => Date.parse(fecha) < limite;
+
+  const remotasPorNombre = new Map();
+  for (const remota of remotas) {
+    if (esNombreFotoReal(remota.name) && !remotasPorNombre.has(remota.name)) remotasPorNombre.set(remota.name, remota);
+  }
+  const localesPorNombre = new Map(locales.filter((l) => esNombreFotoReal(l.nombre)).map((l) => [l.nombre, l]));
+
+  const pendientes = [...localesPorNombre.values()].filter((l) => !l.subida);
+  return {
+    subir: pendientes.filter((l) => activas.has(l.nombre) && !remotasPorNombre.has(l.nombre)).map((l) => l.nombre).sort(porNombre),
+    marcarSubidas: pendientes.filter((l) => remotasPorNombre.has(l.nombre)).map((l) => l.nombre).sort(porNombre),
+    descargar: [...activas].filter((n) => !localesPorNombre.has(n) && remotasPorNombre.has(n)).sort(porNombre)
+      .map((nombre) => ({ nombre, id: remotasPorNombre.get(nombre).id })),
+    borrarLocales: [...localesPorNombre.values()].filter((l) => !usadas.has(l.nombre) && antigua(l.creada))
+      .map((l) => l.nombre).sort(porNombre),
+    borrarRemotas: [...remotasPorNombre.values()]
+      .filter((r) => !usadas.has(r.name) && r.ownedByMe === true && antigua(r.createdTime))
+      .sort((a, b) => porNombre(a.name, b.name)).map((r) => r.id),
   };
 }
 

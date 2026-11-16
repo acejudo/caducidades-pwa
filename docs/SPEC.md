@@ -85,9 +85,11 @@ No se publicará en ninguna tienda de aplicaciones.
 
 ### 4.3 Fotos reales (opcionales)
 
-- Se almacenan en una subcarpeta de Google Drive: `Caducidades/fotos/`
-- Nombre del archivo: `{id-del-producto}.jpg` (o .webp)
-- Solo se suben cuando el usuario elige hacer una foto real
+- Se hacen con la cámara o se eligen de la galería del dispositivo. Antes de guardarlas se reducen a 1024 px en el lado mayor y se comprimen en WebP (o JPEG si el navegador no genera WebP).
+- En el dispositivo se guardan como imagen en IndexedDB, para verlas sin conexión.
+- En Drive se almacenan en la subcarpeta `fotos/` de la carpeta de la lista (`Caducidades/fotos/`).
+- Nombre del archivo: un UUID nuevo por foto, `<uuid>.webp` (o `.jpg`). Es el `foto.valor` del producto. Cambiar la foto crea un archivo nuevo, y así los otros dispositivos saben que tienen que descargarlo.
+- Solo se suben cuando el usuario elige hacer una foto real. Las fotos que ya no usa ningún producto se borran pasado un día, del dispositivo y de Drive (a la papelera).
 
 ### 4.4 Fotos predeterminadas
 

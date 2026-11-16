@@ -67,8 +67,9 @@ prueba('tras la primera operación existe el almacén productos', async () => {
   storage.usarBaseDeDatos(BD_PRUEBAS); // suelta la conexión de storage.js
   const bd = await abrirDirecto();
   try {
-    igual(bd.version, 1, 'versión');
+    igual(bd.version, 2, 'versión');
     verdadero(bd.objectStoreNames.contains('productos'), 'falta el almacén productos');
+    verdadero(bd.objectStoreNames.contains('fotos'), 'falta el almacén fotos');
   } finally {
     bd.close();
   }
@@ -343,6 +344,94 @@ prueba('Guardado de la sincronización', async () => {
   const { avisos, dejar } = escucharCambios();
   try {
     await storage.guardarSincronizados([remoto('r1')]);
+    igual(avisos.length, 0);
+  } finally {
+    dejar();
+  }
+});
+
+// ---------- Fotos reales (fotos-reales) ----------
+
+const FOTO = '3f2b8c1e-9a4d-4e6f-8b2a-1c5d7e9f0a3b.webp';
+
+// Crea a mano una base de datos de la versión 1 (solo el almacén productos), como la de
+// un dispositivo que aún no tiene la app nueva.
+function crearBaseV1(registros) {
+  return new Promise((resolver, rechazar) => {
+    const peticion = indexedDB.open(BD_PRUEBAS, 1);
+    peticion.onupgradeneeded = () => {
+      const almacen = peticion.result.createObjectStore('productos', { keyPath: 'id' });
+      for (const registro of registros) almacen.put(registro);
+    };
+    peticion.onsuccess = () => {
+      peticion.result.close();
+      resolver();
+    };
+    peticion.onerror = () => rechazar(peticion.error);
+  });
+}
+
+prueba('Dispositivo con datos de la versión 1', async () => {
+  storage.usarBaseDeDatos(BD_PRUEBAS);
+  const leche = { ...remoto('v1-leche'), nombre: 'Leche' };
+  const pan = { ...remoto('v1-pan'), nombre: 'Pan', eliminado: true };
+  await crearBaseV1([leche, pan]);
+
+  const activos = await storage.listarProductos();
+  igualProfundo(activos.map((p) => p.nombre), ['Leche']);
+  const todos = await storage.listarTodos();
+  igualProfundo(todos.map((p) => p.id).sort(), ['v1-leche', 'v1-pan']);
+  verdadero(todos.find((p) => p.id === 'v1-pan').eliminado, 'el eliminado se conserva');
+
+  await storage.guardarFoto(FOTO, new Blob(['x'], { type: 'image/webp' }));
+  verdadero(await storage.obtenerFoto(FOTO), 'se pueden guardar fotos');
+});
+
+prueba('Guardar y leer una foto', async () => {
+  const blob = new Blob([new Uint8Array([1, 2, 3, 4, 5])], { type: 'image/webp' });
+  await storage.guardarFoto(FOTO, blob);
+  storage.usarBaseDeDatos(BD_PRUEBAS); // como cerrar y volver a abrir la app
+  const leida = await storage.obtenerFoto(FOTO);
+  igual(leida.type, 'image/webp');
+  igual(leida.size, 5);
+  igualProfundo([...new Uint8Array(await leida.arrayBuffer())], [1, 2, 3, 4, 5]);
+});
+
+prueba('Foto que no existe', async () => {
+  igual(await storage.obtenerFoto(FOTO), null);
+});
+
+prueba('Marcar como subida', async () => {
+  const blob = new Blob(['abc'], { type: 'image/jpeg' });
+  await storage.guardarFoto(FOTO, blob);
+  let [foto] = await storage.listarFotos();
+  igual(foto.subida, false, 'recién guardada no está subida');
+  await storage.marcarFotoSubida(FOTO);
+  [foto] = await storage.listarFotos();
+  igual(foto.subida, true);
+  igual((await storage.obtenerFoto(FOTO)).size, 3, 'la imagen no cambia');
+});
+
+prueba('listarFotos devuelve nombre, subida y creada, sin la imagen', async () => {
+  await storage.guardarFoto(FOTO, new Blob(['a'], { type: 'image/webp' }), { subida: true });
+  const fotos = await storage.listarFotos();
+  igual(fotos.length, 1);
+  igualProfundo(Object.keys(fotos[0]).sort(), ['creada', 'nombre', 'subida']);
+  igual(fotos[0].subida, true);
+  verdadero(!Number.isNaN(Date.parse(fotos[0].creada)), 'creada es una fecha');
+});
+
+prueba('borrarFoto quita la foto', async () => {
+  await storage.guardarFoto(FOTO, new Blob(['a'], { type: 'image/webp' }));
+  await storage.borrarFoto(FOTO);
+  igual(await storage.obtenerFoto(FOTO), null);
+  igualProfundo(await storage.listarFotos(), []);
+});
+
+prueba('guardarFoto no avisa de cambio local', async () => {
+  const { avisos, dejar } = escucharCambios();
+  try {
+    await storage.guardarFoto(FOTO, new Blob(['a'], { type: 'image/webp' }));
     igual(avisos.length, 0);
   } finally {
     dejar();

@@ -214,3 +214,65 @@ prueba('Reintento correcto', async () => {
   await esperarA(() => raiz.querySelector('.detalle__nombre'));
   igual(texto(raiz, '.detalle__nombre'), 'Leche entera');
 });
+
+// ---------- Fotos reales (fotos-reales) ----------
+
+const FOTO_REAL = '3f2b8c1e-9a4d-4e6f-8b2a-1c5d7e9f0a3b.webp';
+
+async function imagenReal() {
+  const lienzo = document.createElement('canvas');
+  lienzo.width = 8;
+  lienzo.height = 8;
+  lienzo.getContext('2d').fillRect(0, 0, 8, 8);
+  return new Promise((resolver) => lienzo.toBlob(resolver, 'image/webp'));
+}
+
+async function esperarHasta(condicion, ms = 2000) {
+  const limite = Date.now() + ms;
+  while (!condicion()) {
+    if (Date.now() > limite) throw new Error('la condición no se cumplió a tiempo');
+    await new Promise((r) => setTimeout(r, 10));
+  }
+}
+
+async function sinErroresEnConsola(fn) {
+  const errores = [];
+  const original = console.error;
+  console.error = (...args) => errores.push(args);
+  try {
+    await fn();
+  } finally {
+    console.error = original;
+  }
+  igual(errores.length, 0, 'hubo errores en la consola');
+}
+
+prueba('Foto real en el dispositivo', async () => {
+  await storage.guardarFoto(FOTO_REAL, await imagenReal(), { subida: true });
+  const p = await storage.crearProducto({ ...LECHE, foto: { tipo: 'real', valor: FOTO_REAL } });
+  const raiz = await montar(p.id);
+  const foto = raiz.querySelector('.detalle__foto');
+  await esperarHasta(() => foto.querySelector('img')?.getAttribute('src')?.startsWith('blob:'));
+  igual(foto.querySelector('img').getAttribute('alt'), '');
+  igual(foto.querySelector('svg'), null, 'sin icono genérico');
+});
+
+prueba('Foto real todavía no disponible', async () => {
+  await sinErroresEnConsola(async () => {
+    const p = await storage.crearProducto({ ...LECHE, foto: { tipo: 'real', valor: FOTO_REAL } });
+    const raiz = await montar(p.id);
+    await new Promise((r) => setTimeout(r, 50));
+    const foto = raiz.querySelector('.detalle__foto');
+    igual(foto.querySelector('img'), null, 'sin imagen');
+    verdadero(foto.querySelector('svg'), 'icono genérico');
+  });
+});
+
+prueba('Detalle con foto real y almacén parcial', async () => {
+  // Las pruebas que sustituyen solo algunas operaciones siguen teniendo obtenerFoto.
+  await storage.guardarFoto(FOTO_REAL, await imagenReal(), { subida: true });
+  const p = await storage.crearProducto({ ...LECHE, foto: { tipo: 'real', valor: FOTO_REAL } });
+  const raiz = await montar(p.id, { almacen: { obtenerProducto: storage.obtenerProducto } });
+  const foto = raiz.querySelector('.detalle__foto');
+  await esperarHasta(() => foto.querySelector('img')?.getAttribute('src')?.startsWith('blob:'));
+});

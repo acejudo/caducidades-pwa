@@ -534,3 +534,157 @@ prueba('Borrador descartado al guardar: también sin foto', async () => {
   raiz = await montar();
   igual(imagenDeZona(raiz), null, 'el alta vuelve sin foto');
 });
+
+// ---------- Fotos reales (fotos-reales) ----------
+
+const FOTO_REAL = '3f2b8c1e-9a4d-4e6f-8b2a-1c5d7e9f0a3b.webp';
+const fotoReal = () => ({ tipo: 'real', valor: FOTO_REAL });
+
+// Una imagen WebP pequeña de verdad, para que el <img> la pueda cargar.
+async function imagenReal() {
+  const lienzo = document.createElement('canvas');
+  lienzo.width = 8;
+  lienzo.height = 8;
+  lienzo.getContext('2d').fillRect(0, 0, 8, 8);
+  return new Promise((resolver) => lienzo.toBlob(resolver, 'image/webp'));
+}
+
+const imagenBlob = (raiz) => {
+  const img = imagenDeZona(raiz);
+  return img?.getAttribute('src')?.startsWith('blob:') ? img : null;
+};
+
+// Almacén real con registro del orden de las llamadas de guardado.
+function almacenEspia(cambios = {}) {
+  const llamadas = [];
+  const espiar = (nombre, fn) => async (...args) => { llamadas.push(nombre); return fn(...args); };
+  return {
+    llamadas,
+    almacen: {
+      obtenerProducto: storage.obtenerProducto,
+      crearProducto: espiar('crearProducto', cambios.crearProducto ?? storage.crearProducto),
+      actualizarProducto: espiar('actualizarProducto', cambios.actualizarProducto ?? storage.actualizarProducto),
+      eliminarProducto: storage.eliminarProducto,
+      guardarFoto: espiar('guardarFoto', cambios.guardarFoto ?? storage.guardarFoto),
+      obtenerFoto: storage.obtenerFoto,
+    },
+  };
+}
+
+prueba('Edición con foto real', async () => {
+  await storage.guardarFoto(FOTO_REAL, await imagenReal(), { subida: true });
+  const p = await storage.crearProducto({ ...COMPLETO, foto: fotoReal() });
+  const raiz = await montar({ id: p.id });
+  await esperarA(() => imagenBlob(raiz));
+  verdadero(zonaFoto(raiz).textContent.includes('Tu foto'), 'falta "Tu foto"');
+  verdadero(zonaFoto(raiz).textContent.includes('Toca para cambiar'), 'falta "Toca para cambiar"');
+});
+
+prueba('Edición con foto real que aún no está en el dispositivo', async () => {
+  const p = await storage.crearProducto({ ...COMPLETO, foto: fotoReal() });
+  const raiz = await montar({ id: p.id });
+  await esperarUnPoco();
+  igual(imagenDeZona(raiz), null, 'sin imagen');
+  verdadero(zonaFoto(raiz).querySelector('svg'), 'icono genérico');
+  verdadero(zonaFoto(raiz).textContent.includes('Tu foto'), 'falta "Tu foto"');
+});
+
+prueba('Alta con foto real', async () => {
+  const blob = await imagenReal();
+  borradores.guardarBorrador('nuevo', { foto: fotoReal(), imagen: blob });
+  const { almacen, llamadas } = almacenEspia();
+  const raiz = await montar({ almacen });
+  await esperarA(() => imagenBlob(raiz));
+  verdadero(zonaFoto(raiz).textContent.includes('Tu foto'), 'falta "Tu foto"');
+  escribir(raiz, 'nombre', 'Tarta de queso');
+  escribir(raiz, 'fechaCaducidad', dentroDe(3));
+  guardar(raiz).click();
+  await esperarA(() => navegaciones.length > 0);
+  igualProfundo(llamadas, ['guardarFoto', 'crearProducto'], 'primero la foto y después el producto');
+  const [p] = await storage.listarProductos();
+  igualProfundo(p.foto, fotoReal());
+  igual((await storage.obtenerFoto(FOTO_REAL))?.size, blob.size, 'la foto está en el dispositivo');
+  const [registro] = await storage.listarFotos();
+  igual(registro.subida, false, 'aún no está en Drive');
+});
+
+prueba('Cambiar a foto real en la edición', async () => {
+  const p = await storage.crearProducto({ ...COMPLETO, foto: conFoto('leche') });
+  borradores.guardarBorrador(`editar:${p.id}`, { foto: fotoReal(), imagen: await imagenReal() });
+  const { almacen, llamadas } = almacenEspia();
+  const raiz = await montar({ id: p.id, almacen });
+  guardar(raiz).click();
+  await esperarA(() => navegaciones.length > 0);
+  igualProfundo(llamadas, ['guardarFoto', 'actualizarProducto']);
+  igualProfundo((await storage.obtenerProducto(p.id)).foto, fotoReal());
+});
+
+prueba('Edición sin tocar una foto real', async () => {
+  await storage.guardarFoto(FOTO_REAL, await imagenReal(), { subida: true });
+  const p = await storage.crearProducto({ ...COMPLETO, foto: fotoReal() });
+  const { almacen, llamadas } = almacenEspia();
+  const raiz = await montar({ id: p.id, almacen });
+  escribir(raiz, 'nombre', 'Otra cosa');
+  guardar(raiz).click();
+  await esperarA(() => navegaciones.length > 0);
+  igualProfundo(llamadas, ['actualizarProducto'], 'no vuelve a guardar la foto');
+  igualProfundo((await storage.obtenerProducto(p.id)).foto, fotoReal());
+});
+
+prueba('Cancelar con foto real', async () => {
+  const p = await storage.crearProducto({ ...COMPLETO, foto: conFoto('leche') });
+  borradores.guardarBorrador(`editar:${p.id}`, { foto: fotoReal(), imagen: await imagenReal() });
+  const { almacen, llamadas } = almacenEspia();
+  const raiz = await montar({ id: p.id, almacen });
+  respuestaConfirmar = true;
+  boton(raiz, 'Cancelar').click();
+  await esperarA(() => navegaciones.length > 0);
+  igual(confirmaciones[0]?.titulo, '¿Descartar los cambios?');
+  igualProfundo(llamadas, [], 'no guarda nada');
+  igualProfundo((await storage.obtenerProducto(p.id)).foto, conFoto('leche'));
+  igual(await storage.obtenerFoto(FOTO_REAL), null);
+  igual(borradores.leerBorrador(`editar:${p.id}`), null, 'se descarta el borrador');
+});
+
+prueba('Fallo al guardar la foto', async () => {
+  borradores.guardarBorrador('nuevo', { foto: fotoReal(), imagen: await imagenReal() });
+  const { almacen, llamadas } = almacenEspia({
+    guardarFoto: async () => { throw new storage.ErrorAlmacenamiento('sin espacio'); },
+  });
+  const raiz = await montar({ almacen });
+  escribir(raiz, 'nombre', 'Queso');
+  escribir(raiz, 'fechaCaducidad', dentroDe(9));
+  guardar(raiz).click();
+  const aviso = () => raiz.querySelector('.formulario__aviso');
+  await esperarA(() => visible(aviso()));
+  igual(aviso().textContent, 'No se pudo guardar el producto. Inténtalo de nuevo.');
+  igualProfundo(llamadas, ['guardarFoto'], 'no se guarda el producto');
+  igualProfundo(await storage.listarProductos(), []);
+  igual(control(raiz, 'nombre').value, 'Queso', 'lo escrito sigue');
+  verdadero(imagenBlob(raiz), 'la foto sigue');
+  igual(guardar(raiz).disabled, false);
+  igual(navegaciones.length, 0);
+});
+
+prueba('Ir a Elegir foto con una foto real conserva la imagen', async () => {
+  const blob = await imagenReal();
+  borradores.guardarBorrador('nuevo', { valores: { nombre: 'Pizza' }, foto: fotoReal(), imagen: blob });
+  let raiz = await montar();
+  zonaFoto(raiz).click();
+  const borrador = borradores.leerBorrador('nuevo');
+  igualProfundo(borrador?.foto, fotoReal());
+  igual(borrador?.imagen, blob, 'el borrador guarda la imagen');
+  raiz = await montar(); // vuelve con la flecha sin elegir nada
+  await esperarA(() => imagenBlob(raiz));
+  igual(control(raiz, 'nombre').value, 'Pizza');
+});
+
+prueba('Cancelar tras cambiar a una foto real', async () => {
+  const p = await storage.crearProducto({ ...COMPLETO, foto: conFoto('leche') });
+  borradores.guardarBorrador(`editar:${p.id}`, { foto: fotoReal(), imagen: await imagenReal() });
+  const raiz = await montar({ id: p.id });
+  respuestaConfirmar = false;
+  boton(raiz, 'Cancelar').click();
+  await esperarA(() => confirmaciones.length > 0);
+  igual(confirmaciones[0].titulo, '¿Descartar los cambios?');
+});

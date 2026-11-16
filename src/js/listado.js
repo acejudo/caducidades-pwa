@@ -2,10 +2,10 @@
 // Spec: openspec/specs/product-list. No importa ui.js, auth.js ni config.js, para poder
 // probarse sin config.local.js (tests/navegador/listado.test.js).
 
-import { listarProductos, eliminarProducto } from './storage.js';
+import { listarProductos, eliminarProducto, obtenerFoto as obtenerFotoGuardada } from './storage.js';
 import { diasRestantes, nivelUrgencia, textoCaducidad, filtrarPorEstado, FILTROS } from './productos.js';
 import { formatearFecha, formatearCantidad } from './formato.js';
-import { fotoDeProducto } from './fotos.js';
+import { pintarFoto } from './fotos-reales.js';
 import { ICONOS } from './iconos.js';
 import { activarDeslizar } from './deslizar.js';
 import { confirmar as confirmarDialogo } from './dialogo.js';
@@ -33,19 +33,19 @@ function estadoVacio(titulo, texto = null) {
   );
 }
 
-// La imagen del catálogo o, si no hay ninguna que mostrar, el icono genérico. La imagen
-// es decorativa: el nombre del producto va al lado.
-function fotoDeTarjeta(producto) {
-  const foto = fotoDeProducto(producto);
-  return foto
-    ? el('img', { src: foto.url, alt: '', width: 48, height: 48 })
-    : icono(ICONOS.producto);
+// La imagen del catálogo, la foto real o, si no hay ninguna que mostrar, el icono
+// genérico (la foto real se pinta en cuanto se lee). La imagen es decorativa: el nombre
+// del producto va al lado.
+function fotoDeTarjeta(producto, obtenerFoto) {
+  const contenedor = el('span', { class: 'tarjeta__foto' });
+  pintarFoto(contenedor, producto, { obtenerFoto, ancho: 48, alto: 48 });
+  return contenedor;
 }
 
 // Cada tarjeta va dentro de un contenedor deslizable con el botón Eliminar detrás. El
 // botón solo se alcanza con el gesto (tabindex -1, oculto a los lectores de pantalla):
 // el Detalle ofrece la misma acción por teclado (design.md §8).
-function tarjeta(producto, hoy, alEliminar) {
+function tarjeta(producto, hoy, alEliminar, obtenerFoto) {
   const dias = diasRestantes(producto.fechaCaducidad, hoy);
   return el('li', {}, el('div', { class: 'tarjeta-deslizable' },
     el('button', {
@@ -59,7 +59,7 @@ function tarjeta(producto, hoy, alEliminar) {
       href: `#/producto/${encodeURIComponent(producto.id)}`,
       class: `tarjeta tarjeta--producto urgencia--${nivelUrgencia(dias)}`,
     },
-    el('span', { class: 'tarjeta__foto' }, fotoDeTarjeta(producto)),
+    fotoDeTarjeta(producto, obtenerFoto),
     el('span', { class: 'tarjeta__cuerpo' },
       el('span', { class: 'tarjeta__nombre', text: producto.nombre }),
       el('span', { class: 'tarjeta__caducidad', text: `Caduca el ${formatearFecha(producto.fechaCaducidad)}` }),
@@ -77,6 +77,7 @@ export function crearPantallaListado({
   hoy = () => new Date(),
   eliminar = eliminarProducto,
   confirmar = confirmarDialogo,
+  obtenerFoto = obtenerFotoGuardada,
 } = {}) {
   const pestanas = FILTROS.map(({ clave, texto }) => el('button', {
     type: 'button',
@@ -154,7 +155,7 @@ export function crearPantallaListado({
     const visibles = filtrarPorEstado(productos, filtroActivo, ahora);
     contenido.append(visibles.length === 0
       ? estadoVacio(SIN_RESULTADOS[filtroActivo])
-      : el('ul', { class: 'lista-productos' }, visibles.map((producto) => tarjeta(producto, ahora, eliminarDesdeLista))));
+      : el('ul', { class: 'lista-productos' }, visibles.map((producto) => tarjeta(producto, ahora, eliminarDesdeLista, obtenerFoto))));
   }
 
   function pintarError() {

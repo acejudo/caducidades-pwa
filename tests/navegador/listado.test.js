@@ -526,3 +526,54 @@ prueba('Fallo al eliminar', async () => {
   igualProfundo(nombres(raiz), ['Leche']);
   verdadero(await storage.obtenerProducto(leche.id));
 });
+
+// ---------- Fotos reales (fotos-reales) ----------
+
+const FOTO_REAL = '3f2b8c1e-9a4d-4e6f-8b2a-1c5d7e9f0a3b.webp';
+
+async function imagenReal() {
+  const lienzo = document.createElement('canvas');
+  lienzo.width = 8;
+  lienzo.height = 8;
+  lienzo.getContext('2d').fillRect(0, 0, 8, 8);
+  return new Promise((resolver) => lienzo.toBlob(resolver, 'image/webp'));
+}
+
+async function esperarHasta(condicion, ms = 2000) {
+  const limite = Date.now() + ms;
+  while (!condicion()) {
+    if (Date.now() > limite) throw new Error('la condición no se cumplió a tiempo');
+    await new Promise((r) => setTimeout(r, 10));
+  }
+}
+
+async function sinErroresEnConsola(fn) {
+  const errores = [];
+  const original = console.error;
+  console.error = (...args) => errores.push(args);
+  try {
+    await fn();
+  } finally {
+    console.error = original;
+  }
+  igual(errores.length, 0, 'hubo errores en la consola');
+}
+
+prueba('Foto real en el dispositivo', async () => {
+  await storage.guardarFoto(FOTO_REAL, await imagenReal(), { subida: true });
+  await storage.crearProducto({ nombre: 'Tarta', fechaCaducidad: dentroDe(1), foto: { tipo: 'real', valor: FOTO_REAL } });
+  const foto = tarjetas(await montar())[0].querySelector('.tarjeta__foto');
+  await esperarHasta(() => foto.querySelector('img')?.getAttribute('src')?.startsWith('blob:'));
+  igual(foto.querySelector('img').getAttribute('alt'), '', 'decorativa: el nombre va al lado');
+  igual(foto.querySelector('svg'), null, 'sin icono genérico');
+});
+
+prueba('Foto real todavía no disponible', async () => {
+  await sinErroresEnConsola(async () => {
+    await storage.crearProducto({ nombre: 'Tarta', fechaCaducidad: dentroDe(1), foto: { tipo: 'real', valor: FOTO_REAL } });
+    const foto = tarjetas(await montar())[0].querySelector('.tarjeta__foto');
+    await new Promise((r) => setTimeout(r, 50));
+    igual(foto.querySelector('img'), null, 'sin imagen');
+    verdadero(foto.querySelector('svg'), 'icono genérico');
+  });
+});

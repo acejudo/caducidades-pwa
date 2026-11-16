@@ -136,6 +136,31 @@ describe('product-model: normalización y validación', () => {
     assert.deepEqual(sinFoto.foto, { tipo: 'ninguna', valor: null });
   });
 
+  const NOMBRE_REAL = '3f2b8c1e-9a4d-4e6f-8b2a-1c5d7e9f0a3b.webp';
+
+  test('Nombre de foto real válido', () => {
+    const p = nuevoProducto({ ...MINIMO, foto: { tipo: 'real', valor: NOMBRE_REAL } });
+    assert.deepEqual(p.foto, { tipo: 'real', valor: NOMBRE_REAL });
+    const jpg = NOMBRE_REAL.replace('.webp', '.jpg');
+    assert.deepEqual(validarProducto(normalizarProducto({ ...MINIMO, foto: { tipo: 'real', valor: jpg } })), {});
+  });
+
+  test('Nombre de foto real no válido', () => {
+    for (const valor of ['../caducidades.json', 'foto.png', 'ABC.webp', NOMBRE_REAL.toUpperCase(), NOMBRE_REAL.replace('.webp', '')]) {
+      const errores = validarProducto(normalizarProducto({ ...MINIMO, foto: { tipo: 'real', valor } }));
+      assert.ok(errores.foto, `debería rechazar ${valor}`);
+    }
+  });
+
+  test('esNombreFotoReal', () => {
+    assert.equal(productos.esNombreFotoReal?.(NOMBRE_REAL), true);
+    assert.equal(productos.esNombreFotoReal?.('/' + NOMBRE_REAL), false);
+    assert.equal(productos.esNombreFotoReal?.(NOMBRE_REAL + '\n'), false);
+    assert.equal(productos.esNombreFotoReal?.(null), false);
+    // Una predeterminada no necesita el formato de las reales.
+    assert.deepEqual(validarProducto(normalizarProducto({ ...MINIMO, foto: { tipo: 'predeterminada', valor: 'leche' } })), {});
+  });
+
   test('ErrorValidacion lleva los campos', () => {
     const error = new productos.ErrorValidacion({ nombre: 'El nombre es obligatorio' });
     assert.ok(error instanceof Error);

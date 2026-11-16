@@ -221,3 +221,110 @@ describe('Estados de sincronización', () => {
     assert.equal(texto({ fase: 'error', error: 'algo', tokenVigente: false, pendiente: true }), 'Error al sincronizar');
   });
 });
+
+// ---------- Fotos reales (fotos-reales) ----------
+
+describe('Plan de fotos', () => {
+  const F1 = '11111111-1111-4111-8111-111111111111.webp';
+  const F2 = '22222222-2222-4222-8222-222222222222.jpg';
+  const F3 = '33333333-3333-4333-8333-333333333333.webp';
+  const conFoto = (id, nombre, cambios = {}) => producto(id, { foto: { tipo: 'real', valor: nombre }, ...cambios });
+  const local = (nombre, cambios = {}) => ({ nombre, subida: false, creada: haceDias(3), ...cambios });
+  const remota = (nombre, cambios = {}) => ({ id: `drive-${nombre}`, name: nombre, createdTime: haceDias(3), ownedByMe: true, ...cambios });
+  const plan = (datos) => sincronizacion.planificarFotos({ ahora: AHORA, locales: [], remotas: [], ...datos });
+
+  test('subir una foto local no subida de un producto activo', () => {
+    const p = plan({ productos: [conFoto('a', F1)], locales: [local(F1)] });
+    assert.deepEqual(p.subir, [F1]);
+    assert.deepEqual(p.marcarSubidas, []);
+  });
+
+  test('no subir la foto de un producto eliminado', () => {
+    const p = plan({ productos: [conFoto('a', F1, { eliminado: true })], locales: [local(F1)] });
+    assert.deepEqual(p.subir, []);
+    assert.deepEqual(p.borrarLocales, [], 'se conserva hasta la purga');
+  });
+
+  test('una foto no subida que ya está en Drive solo se marca', () => {
+    const p = plan({ productos: [conFoto('a', F1)], locales: [local(F1)], remotas: [remota(F1)] });
+    assert.deepEqual(p.subir, []);
+    assert.deepEqual(p.marcarSubidas, [F1]);
+  });
+
+  test('una foto ya subida no se vuelve a subir', () => {
+    const p = plan({ productos: [conFoto('a', F1)], locales: [local(F1, { subida: true })] });
+    assert.deepEqual(p.subir, []);
+  });
+
+  test('Foto hecha en otro dispositivo: descargar la que falta en local', () => {
+    const p = plan({ productos: [conFoto('a', F1)], remotas: [remota(F1)] });
+    assert.deepEqual(p.descargar, [{ nombre: F1, id: `drive-${F1}` }]);
+  });
+
+  test('no descargar la foto de un producto eliminado', () => {
+    const p = plan({ productos: [conFoto('a', F1, { eliminado: true })], remotas: [remota(F1)] });
+    assert.deepEqual(p.descargar, []);
+  });
+
+  test('Foto aún no subida: no hay nada que descargar', () => {
+    const p = plan({ productos: [conFoto('a', F1)] });
+    assert.deepEqual(p.descargar, []);
+  });
+
+  test('Foto cambiada: se borra la antigua en local y en Drive', () => {
+    const p = plan({
+      productos: [conFoto('a', F2)],
+      locales: [local(F1, { subida: true, creada: haceDias(2) }), local(F2, { subida: true })],
+      remotas: [remota(F1, { createdTime: haceDias(2) }), remota(F2)],
+    });
+    assert.deepEqual(p.borrarLocales, [F1]);
+    assert.deepEqual(p.borrarRemotas, [`drive-${F1}`]);
+  });
+
+  test('Foto recién hecha en otro dispositivo: no se borra', () => {
+    const p = plan({
+      productos: [],
+      locales: [local(F1, { creada: new Date(AHORA.getTime() - 3_600_000).toISOString() })],
+      remotas: [remota(F1, { createdTime: new Date(AHORA.getTime() - 3_600_000).toISOString() })],
+    });
+    assert.deepEqual(p.borrarLocales, []);
+    assert.deepEqual(p.borrarRemotas, []);
+  });
+
+  test('Producto eliminado: se conserva su foto', () => {
+    const p = plan({
+      productos: [conFoto('a', F1, { eliminado: true })],
+      locales: [local(F1, { subida: true })],
+      remotas: [remota(F1)],
+    });
+    assert.deepEqual(p.borrarLocales, []);
+    assert.deepEqual(p.borrarRemotas, []);
+  });
+
+  test('no se intenta borrar una foto sin usar de otra cuenta', () => {
+    const p = plan({ productos: [], remotas: [remota(F1, { ownedByMe: false })] });
+    assert.deepEqual(p.borrarRemotas, []);
+  });
+
+  test('los archivos de Drive con otro nombre no se tocan', () => {
+    const p = plan({ productos: [], remotas: [remota('notas.txt'), remota('../caducidades.json')] });
+    assert.deepEqual(p.borrarRemotas, []);
+    assert.deepEqual(p.descargar, []);
+  });
+
+  test('una foto con nombre no válido en un producto no se pide ni se sube', () => {
+    const p = plan({ productos: [producto('a', { foto: { tipo: 'real', valor: 'x.png' } })], remotas: [remota('x.png')] });
+    assert.deepEqual(p.descargar, []);
+    assert.deepEqual(p.subir, []);
+  });
+
+  test('fotos predeterminadas y productos sin foto no generan trabajo', () => {
+    const p = plan({ productos: [producto('a'), producto('b', { foto: { tipo: 'predeterminada', valor: 'leche' } })] });
+    assert.deepEqual(p, { subir: [], marcarSubidas: [], descargar: [], borrarLocales: [], borrarRemotas: [] });
+  });
+
+  test('varias fotos: listas ordenadas por nombre', () => {
+    const p = plan({ productos: [conFoto('a', F3), conFoto('b', F1)], locales: [local(F3), local(F1)] });
+    assert.deepEqual(p.subir, [F1, F3]);
+  });
+});

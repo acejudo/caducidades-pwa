@@ -4,9 +4,14 @@
 // No importa auth.js ni config.js: `auth` se inyecta (ui.js crea la instancia de la app)
 // y así se prueba sin config.local.js (tests/navegador/sincronizador.test.js).
 
-import { listarTodos, guardarSincronizados, cambiosLocales } from './storage.js';
+import {
+  listarTodos, guardarSincronizados, cambiosLocales,
+  listarFotos, guardarFoto, obtenerFoto, marcarFotoSubida, borrarFoto,
+} from './storage.js';
 import { crearClienteDrive, ErrorRed, ErrorToken, ErrorNoDisponible } from './drive.js';
-import { leerArchivo, crearArchivo, purgar, planificar, textoEstado, ErrorArchivoNoValido } from './sincronizacion.js';
+import {
+  leerArchivo, crearArchivo, purgar, planificar, planificarFotos, textoEstado, ErrorArchivoNoValido,
+} from './sincronizacion.js';
 import { confirmar as confirmarDialogo } from './dialogo.js';
 
 const CLAVE_PREFERENCIAS = 'caducidades.sincronizacion';
@@ -23,7 +28,7 @@ export const MENSAJES = Object.freeze({
 // No hay lista en Drive y no se ha creado (el usuario no quiso o no se le preguntó).
 class SinLista extends Error {}
 
-// Preferencias en localStorage { archivoId, pendiente, ultima }; si está bloqueado, en
+// Preferencias en localStorage { archivoId, carpetaId, pendiente, ultima }; si está bloqueado, en
 // memoria (no debe lanzar nunca).
 export function preferenciasLocales(clave = CLAVE_PREFERENCIAS) {
   let enMemoria = null;
@@ -54,7 +59,9 @@ function mensajeDe(error) {
 
 export function crearSincronizador({
   auth,
-  almacen = { listarTodos, guardarSincronizados, cambiosLocales },
+  almacen = {
+    listarTodos, guardarSincronizados, cambiosLocales, listarFotos, guardarFoto, obtenerFoto, marcarFotoSubida, borrarFoto,
+  },
   crearDrive = (token) => crearClienteDrive({ token }),
   red = { enLinea: () => navigator.onLine, objetivo: window },
   preferencias = preferenciasLocales(),
@@ -64,13 +71,14 @@ export function crearSincronizador({
 } = {}) {
   // Sin datos guardados no se ha sincronizado nunca: lo local cuenta como pendiente.
   const guardadas = preferencias.leer();
-  let datos = { archivoId: null, pendiente: true, ultima: null, ...guardadas };
+  let datos = { archivoId: null, carpetaId: null, pendiente: true, ultima: null, ...guardadas };
   let fase = 'inactivo'; // 'inactivo' | 'sincronizando' | 'error'
   let error = null;
   let enCurso = null;
   let otraVez = false;
   let otraVezAPeticion = false;
   let cambioDurante = false;
+  let enFaseFotos = false;
   let preguntadoCrear = false;
   let preguntadoLista = false;
   let espera = null;
@@ -140,7 +148,7 @@ export function crearSincronizador({
         });
         if (!usar) throw new SinLista();
       }
-      guardar({ archivoId: lista.id });
+      guardar({ archivoId: lista.id, carpetaId: lista.parents?.[0] ?? null });
       return lista.id;
     }
     // En automático se pregunta como mucho una vez por sesión de la app.
@@ -155,7 +163,7 @@ export function crearSincronizador({
     if (!crear) throw new SinLista();
     const locales = await almacen.listarTodos();
     const { id } = await drive.crearLista(crearArchivo(purgar(locales, ahora()), ahora()));
-    guardar({ archivoId: id });
+    guardar({ archivoId: id, carpetaId: null });
     return id;
   }
 
@@ -175,17 +183,75 @@ export function crearSincronizador({
     throw new Error('El archivo de Drive cambia continuamente');
   }
 
+  // ---------- Fotos reales (fotos-reales, design.md §6) ----------
+
+  // Carpeta de la lista (la recordada o, si no se sabe, la que dice Drive).
+  async function carpetaDeLista(drive, archivoId) {
+    if (datos.carpetaId) return datos.carpetaId;
+    const carpetaId = await drive.carpetaDeLista(archivoId);
+    guardar({ carpetaId });
+    return carpetaId;
+  }
+
+  // Una operación de una sola foto que puede fallar sin parar la sincronización: el token
+  // rechazado sí la para (hay que renovarlo); el resto se anota y se sigue.
+  async function tolerante(descripcion, operacion) {
+    try {
+      await operacion();
+    } catch (error) {
+      if (error instanceof ErrorToken) throw error;
+      console.warn(`No se pudo ${descripcion}:`, error);
+    }
+  }
+
+  // Sube las fotos que faltan en Drive, descarga las que faltan en el dispositivo y borra
+  // las que ya no usa nadie. Si ningún producto tiene foto real y no hay fotos guardadas,
+  // no toca Drive (ni crea la carpeta de fotos).
+  async function sincronizarFotos(drive, archivoId) {
+    const productos = await almacen.listarTodos();
+    const locales = await almacen.listarFotos();
+    if (locales.length === 0 && !productos.some((p) => p.foto?.tipo === 'real')) return;
+
+    const carpetaId = await carpetaDeLista(drive, archivoId);
+    let carpetaFotos = await drive.buscarCarpetaFotos(carpetaId);
+    const remotas = carpetaFotos ? await drive.listarFotos(carpetaFotos) : [];
+    const plan = planificarFotos({ productos, locales, remotas, ahora: ahora() });
+
+    for (const nombre of plan.marcarSubidas) await almacen.marcarFotoSubida(nombre);
+    // Un fallo al subir corta la fase: la foto sigue pendiente y se reintenta después.
+    for (const nombre of plan.subir) {
+      const blob = await almacen.obtenerFoto(nombre);
+      if (!blob) continue;
+      carpetaFotos ??= await drive.crearCarpetaFotos(carpetaId);
+      await drive.subirFoto(carpetaFotos, nombre, blob);
+      await almacen.marcarFotoSubida(nombre);
+    }
+    for (const { nombre, id } of plan.descargar) {
+      await tolerante(`descargar la foto ${nombre}`, async () => {
+        await almacen.guardarFoto(nombre, await drive.descargarFoto(id), { subida: true });
+      });
+    }
+    for (const nombre of plan.borrarLocales) {
+      await tolerante(`borrar la foto local ${nombre}`, () => almacen.borrarFoto(nombre));
+    }
+    for (const id of plan.borrarRemotas) {
+      await tolerante(`mandar a la papelera la foto ${id}`, () => drive.papeleraFoto(id));
+    }
+  }
+
   async function sincronizarCon(drive, aPeticion) {
     let id = datos.archivoId;
     for (let intento = 0; ; intento += 1) {
       try {
         id ??= await localizar(drive, aPeticion);
         await sincronizarArchivo(drive, id);
+        enFaseFotos = true;
+        await sincronizarFotos(drive, id);
         return;
       } catch (causa) {
         // El archivo recordado se borró o se dejó de compartir: se busca otra vez (una).
         if (!(causa instanceof ErrorNoDisponible) || intento > 0) throw causa;
-        guardar({ archivoId: null });
+        guardar({ archivoId: null, carpetaId: null });
         id = null;
       }
     }
@@ -219,6 +285,7 @@ export function crearSincronizador({
     fase = 'sincronizando';
     error = null;
     cambioDurante = false;
+    enFaseFotos = false;
     notificar();
     try {
       await sincronizarCon(crearDrive(() => auth.tokenVigente()), aPeticion);
@@ -236,6 +303,8 @@ export function crearSincronizador({
         console.error('No se pudo sincronizar con Google Drive:', causa);
         fase = 'error';
         error = mensajeDe(causa);
+        // La lista se sincronizó pero quedan fotos por subir: siguen pendientes.
+        if (enFaseFotos) guardar({ pendiente: true });
       }
     }
     notificar();

@@ -7,6 +7,15 @@ import { CATEGORIAS, URGENCIA } from './constantes.js';
 export const TIPOS_FOTO = Object.freeze(['predeterminada', 'real', 'ninguna']);
 export const NOMBRE_MAX = 100;
 
+// Nombre de una foto real: UUID en minúsculas y extensión .webp o .jpg (fotos-reales,
+// design.md §1). Solo con este formato: un caducidades.json manipulado no puede
+// apuntar a otras rutas ni archivos.
+const NOMBRE_FOTO_REAL = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(webp|jpg)$/;
+
+export function esNombreFotoReal(valor) {
+  return typeof valor === 'string' && NOMBRE_FOTO_REAL.test(valor);
+}
+
 const POR_DEFECTO = Object.freeze({
   cantidad: 1,
   unidad: 'ud',
@@ -99,6 +108,7 @@ export function validarProducto(producto) {
 
   if (!TIPOS_FOTO.includes(producto.foto?.tipo)) errores.foto = 'El tipo de foto no es válido';
   else if (producto.foto.tipo !== 'ninguna' && !producto.foto.valor) errores.foto = 'Falta la foto elegida';
+  else if (producto.foto.tipo === 'real' && !esNombreFotoReal(producto.foto.valor)) errores.foto = 'La foto no es válida';
 
   return errores;
 }

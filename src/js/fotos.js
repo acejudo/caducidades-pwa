@@ -1,6 +1,8 @@
 // Catálogo de fotos predeterminadas y cómo se muestra la foto de un producto.
 // Spec: openspec/specs/product-photos. Puro (sin DOM ni config.js): se prueba en Node.
 
+import { esNombreFotoReal } from './productos.js';
+
 // Orden de la cuadrícula de Elegir foto; "Genérico" siempre al final.
 export const FOTOS_PREDETERMINADAS = Object.freeze([
   ['yogur', 'Yogur'],
@@ -48,11 +50,15 @@ export function filtrarFotos(texto = '') {
   return FOTOS_PREDETERMINADAS.filter((foto) => simplificar(foto.nombre).includes(buscado));
 }
 
-// { id, nombre, url } si el producto tiene una foto predeterminada del catálogo; null en
-// cualquier otro caso (sin foto, id desconocido o foto real, que aún no se muestra).
+// Qué foto mostrar de un producto:
+// - { tipo: 'predeterminada', id, nombre, url } si es una del catálogo;
+// - { tipo: 'real', nombre } si es una foto real con nombre válido (la imagen se lee del
+//   almacenamiento local; fotos-reales.js la pinta);
+// - null en cualquier otro caso (sin foto o id/nombre desconocido): icono genérico.
 export function fotoDeProducto(producto) {
   const { tipo, valor } = producto?.foto ?? {};
+  if (tipo === 'real') return esNombreFotoReal(valor) ? { tipo: 'real', nombre: valor } : null;
   if (tipo !== 'predeterminada') return null;
   const foto = buscarFoto(valor);
-  return foto && { ...foto, url: urlFoto(foto.id) };
+  return foto && { tipo: 'predeterminada', ...foto, url: urlFoto(foto.id) };
 }

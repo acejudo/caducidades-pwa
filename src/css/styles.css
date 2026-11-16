@@ -338,8 +338,23 @@ body {
 }
 
 .zona-foto__imagen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 96px;
   height: 96px;
+  border-radius: var(--radio-md);
+  overflow: hidden;
+}
+
+.zona-foto__imagen img {
+  width: 100%;
+  height: 100%;
+}
+
+/* Las fotos reales se recortan para llenar el hueco; las predeterminadas son cuadradas. */
+.foto-real {
+  object-fit: cover;
 }
 
 .zona-foto__nombre {
@@ -515,6 +530,11 @@ body {
   background: var(--color-fondo-foto);
   color: var(--color-texto-secundario);
   overflow: hidden;
+}
+
+.tarjeta__foto .foto-real {
+  width: 100%;
+  height: 100%;
 }
 
 .tarjeta__cuerpo {
@@ -891,16 +911,30 @@ textarea.campo__control {
   padding: 0 var(--espacio-3);
 }
 
-.fotos__hacer-texto {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  line-height: 1.15;
+/* "Hacer foto" y "Sin foto" en una fila; la galería y los mensajes, en filas enteras. */
+.fotos__galeria,
+.fotos__estado {
+  grid-column: 1 / -1;
 }
 
-.fotos__proximamente {
-  font-size: var(--texto-secundario);
-  font-weight: var(--peso-normal);
+.fotos__estado {
+  margin: 0;
+  text-align: center;
+  color: var(--color-texto-secundario);
+}
+
+.fotos__estado--error {
+  color: var(--color-peligro);
+  font-weight: var(--peso-semi);
+}
+
+/* Entradas de archivo invisibles (las abren los botones). */
+.fotos__archivo {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* ---------- Detalle del producto ---------- */
@@ -930,6 +964,17 @@ textarea.campo__control {
 .detalle__foto svg {
   width: 64px;
   height: 64px;
+}
+
+/* La foto real llena todo el recuadro. */
+.detalle__foto {
+  overflow: hidden;
+}
+
+.detalle__foto .foto-real {
+  width: 100%;
+  max-width: none;
+  height: 100%;
 }
 
 .detalle__nombre {

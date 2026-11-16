@@ -67,8 +67,9 @@ src/                    # la app (lo que se publica)
   js/formato.js         # fechas ("20 nov 2026") y cantidades ("0,5 kg") en español
   js/config.local.js          # (no está en git) Client ID y hashes de los emails
   js/config.local.example.js  # plantilla de config.local.js
-  js/storage.js         # almacenamiento local de productos en IndexedDB (sin conexión)
-  js/drive.js           # (pendiente) Google Drive API
+  js/storage.js         # almacenamiento local de productos y fotos reales en IndexedDB (sin conexión)
+  js/drive.js           # cliente de Google Drive API (lista y fotos)
+  js/fotos-reales.js    # compresión de las fotos de la cámara o la galería y pintado de la foto de un producto
   js/utils.js           # utilidades de DOM
   img/icons/            # icono de la app (icon.svg es el origen de los PNG)
   img/predeterminadas/  # fotos predeterminadas de productos

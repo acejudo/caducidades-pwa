@@ -2,7 +2,9 @@
 // Spec: openspec/specs/product-form. No importa ui.js, auth.js ni config.js, para poder
 // probarse sin config.local.js (tests/navegador/formulario.test.js).
 
-import { obtenerProducto, crearProducto, actualizarProducto, eliminarProducto } from './storage.js';
+import {
+  obtenerProducto, crearProducto, actualizarProducto, eliminarProducto, guardarFoto, obtenerFoto,
+} from './storage.js';
 import { CATEGORIAS, UNIDADES } from './constantes.js';
 import { ErrorValidacion } from './productos.js';
 import { ICONOS } from './iconos.js';
@@ -11,6 +13,7 @@ import { confirmar as confirmarDialogo } from './dialogo.js';
 import { el, icono } from './utils.js';
 import { leerBorrador, guardarBorrador, descartarBorrador } from './borradores.js';
 import { fotoDeProducto } from './fotos.js';
+import { pintarFoto } from './fotos-reales.js';
 
 // Las pruebas lo importan desde aquí.
 export { descartarBorradores } from './borradores.js';
@@ -85,21 +88,26 @@ function campo(nombre, etiqueta, contenido, { obligatorio = false, opcional = fa
   );
 }
 
-// Contenido de la zona de foto: la imagen y su nombre, o la cámara si no hay foto que
-// mostrar (product-photos, "Foto de un producto").
-function zonaDeFoto(href, foto) {
-  const predeterminada = fotoDeProducto({ foto });
-  if (!predeterminada) {
-    return el('a', { href, class: 'zona-foto' },
+// Zona de foto (product-form, "Zona de foto"): la imagen y su nombre si es predeterminada,
+// la foto real con "Tu foto", o la cámara si no hay foto que mostrar. Devuelve
+// { zona, pintada }: `pintada` se resuelve cuando la foto real ya se ve (o no está).
+function zonaDeFoto(href, foto, { imagen, obtenerFoto: leerFoto }) {
+  const actual = fotoDeProducto({ foto });
+  if (!actual) {
+    const zona = el('a', { href, class: 'zona-foto' },
       icono(ICONOS.camara), el('span', { text: 'Toca para elegir foto' }));
+    return { zona, pintada: Promise.resolve() };
   }
-  return el('a', { href, class: 'zona-foto zona-foto--con-foto' },
-    el('img', { src: predeterminada.url, alt: '', width: 96, height: 96, class: 'zona-foto__imagen' }),
-    el('span', { class: 'zona-foto__nombre', text: predeterminada.nombre }),
+  const marco = el('span', { class: 'zona-foto__imagen' });
+  const pintada = pintarFoto(marco, { foto }, { imagen, obtenerFoto: leerFoto, ancho: 96, alto: 96 });
+  const zona = el('a', { href, class: 'zona-foto zona-foto--con-foto' },
+    marco,
+    el('span', { class: 'zona-foto__nombre', text: actual.tipo === 'real' ? 'Tu foto' : actual.nombre }),
     el('span', { class: 'zona-foto__nota', text: 'Toca para cambiar' }));
+  return { zona, pintada };
 }
 
-function construirFormulario(valores, { edicion, hrefFoto, foto }) {
+function construirFormulario(valores, { edicion, hrefFoto, foto, imagen, obtenerFoto: leerFoto }) {
   const control = (tag, nombre, attrs = {}) => el(tag, { id: `campo-${nombre}`, name: nombre, class: 'campo__control', ...attrs });
 
   const nombre = control('input', 'nombre', {
@@ -122,7 +130,7 @@ function construirFormulario(valores, { edicion, hrefFoto, foto }) {
   const eliminar = edicion ? el('button', { type: 'button', class: 'btn btn--peligro btn--bloque', text: 'Eliminar' }) : null;
   const aviso = el('p', { class: 'formulario__aviso', role: 'alert', hidden: true });
 
-  const zonaFoto = zonaDeFoto(hrefFoto, foto);
+  const { zona: zonaFoto, pintada } = zonaDeFoto(hrefFoto, foto, { imagen, obtenerFoto: leerFoto });
 
   const form = el('form', { class: 'formulario', novalidate: true },
     zonaFoto,
@@ -142,7 +150,7 @@ function construirFormulario(valores, { edicion, hrefFoto, foto }) {
   const controles = { nombre, fechaCompra, fechaCaducidad, cantidad, unidad, categoria, notas };
   for (const [clave, c] of Object.entries(controles)) c.value = valores[clave];
 
-  return { form, controles, botones: { restar, sumar, guardar, cancelar, eliminar }, aviso, zonaFoto };
+  return { form, controles, botones: { restar, sumar, guardar, cancelar, eliminar }, aviso, zonaFoto, pintada };
 }
 
 // Orden de los campos en pantalla (para enfocar el primero con error). La unidad
@@ -198,10 +206,15 @@ function mostrarErrores(form, controles, campos, aviso) {
 // en las pruebas (design.md §1).
 export function crearPantallaFormulario({
   id = null,
-  almacen = { obtenerProducto, crearProducto, actualizarProducto, eliminarProducto },
+  almacen: almacenInyectado = {},
   navegacion = { volver, reemplazar },
   confirmar = confirmarDialogo,
 } = {}) {
+  // Las pruebas sustituyen solo las operaciones que les interesan.
+  const almacen = {
+    obtenerProducto, crearProducto, actualizarProducto, eliminarProducto, guardarFoto, obtenerFoto,
+    ...almacenInyectado,
+  };
   const elemento = el('section', { class: 'formulario-pantalla' });
   const edicion = id !== null;
 
@@ -209,6 +222,8 @@ export function crearPantallaFormulario({
   const hrefFoto = edicion ? `#/producto/${encodeURIComponent(id)}/editar/foto` : '#/producto/nuevo/foto';
   let producto = null;
   let fotoActual = SIN_FOTO;
+  // Blob de una foto real elegida en Elegir foto y aún no guardada (design.md §4).
+  let imagenActual = null;
   let estadoInicial = '';
 
   function pintarEstado(titulo, accion) {
@@ -241,7 +256,10 @@ export function crearPantallaFormulario({
     const borrador = leerBorrador(clave);
     descartarBorrador(clave);
     fotoActual = borrador?.foto ?? fotoGuardada;
-    const partes = construirFormulario(valores, { edicion, hrefFoto, foto: fotoActual });
+    imagenActual = borrador?.foto ? (borrador.imagen ?? null) : null;
+    const partes = construirFormulario(valores, {
+      edicion, hrefFoto, foto: fotoActual, imagen: imagenActual, obtenerFoto: almacen.obtenerFoto,
+    });
     // Lo que se compara para saber si hay cambios sin guardar (design.md §5): los
     // valores y la foto guardados, así un borrador recuperado cuenta como cambios.
     estadoInicial = JSON.stringify({ valores: leerValores(partes.controles), foto: fotoGuardada });
@@ -250,8 +268,13 @@ export function crearPantallaFormulario({
     activarGuardado(partes);
     activarCancelarYEliminar(partes);
     // Ir a Elegir foto guarda lo escrito para recuperarlo al volver (design.md §7).
-    partes.zonaFoto.addEventListener('click', () => guardarBorrador(clave, { valores: leerValores(partes.controles), foto: fotoActual }));
+    partes.zonaFoto.addEventListener('click', () => guardarBorrador(clave, {
+      valores: leerValores(partes.controles),
+      foto: fotoActual,
+      ...(imagenActual && { imagen: imagenActual }),
+    }));
     elemento.replaceChildren(partes.form);
+    await partes.pintada;
   }
 
   function aplicarValores(controles, valores = {}) {
@@ -322,6 +345,9 @@ export function crearPantallaFormulario({
       // La foto es la de la zona de foto: en la edición, la guardada si no se eligió otra.
       const datos = { ...leerValores(controles), foto: fotoActual };
       try {
+        // Una foto real nueva se guarda antes que el producto: si falla, no se guarda nada.
+        // Si después falla el producto, la foto queda sin usar y la borra la limpieza.
+        if (imagenActual && fotoActual.tipo === 'real') await almacen.guardarFoto(fotoActual.valor, imagenActual);
         if (edicion) {
           await almacen.actualizarProducto(id, datos);
         } else {

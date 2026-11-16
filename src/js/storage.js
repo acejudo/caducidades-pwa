@@ -7,8 +7,9 @@ import {
 } from './productos.js';
 import { fusionar } from './sincronizacion.js';
 
-const VERSION = 1;
+const VERSION = 2;
 const ALMACEN = 'productos';
+const ALMACEN_FOTOS = 'fotos'; // fotos reales { nombre, blob, subida, creada } (v2)
 
 let nombreBaseDeDatos = 'caducidades';
 let conexion = null; // Promise<IDBDatabase> de la conexión abierta (o abriéndose)
@@ -48,6 +49,9 @@ function migrar(bd, versionAnterior) {
   switch (versionAnterior) {
     case 0:
       bd.createObjectStore(ALMACEN, { keyPath: 'id' });
+    // falls through
+    case 1:
+      bd.createObjectStore(ALMACEN_FOTOS, { keyPath: 'nombre' });
     // falls through
     default:
   }
@@ -107,12 +111,12 @@ function esErrorDeDominio(error) {
 // transacción se ha confirmado (oncomplete). Si la operación lanza, la transacción se
 // aborta: los errores de dominio pasan tal cual y el resto se convierte en
 // ErrorAlmacenamiento.
-async function enTransaccion(modo, operacion) {
+async function enTransaccion(modo, operacion, almacenes = ALMACEN) {
   const bd = await abrir();
 
   let transaccion;
   try {
-    transaccion = bd.transaction(ALMACEN, modo);
+    transaccion = bd.transaction(almacenes, modo);
   } catch (causa) {
     usarBaseDeDatos(nombreBaseDeDatos); // conexión cerrada o inválida: se reabrirá
     throw new ErrorAlmacenamiento('No se pudo acceder al almacenamiento local', causa);
@@ -126,7 +130,7 @@ async function enTransaccion(modo, operacion) {
 
   let resultado;
   try {
-    resultado = await operacion(transaccion.objectStore(ALMACEN));
+    resultado = await operacion(transaccion.objectStore(almacenes));
   } catch (error) {
     try { transaccion.abort(); } catch { /* ya abortada */ }
     if (esErrorDeDominio(error)) throw error;
@@ -222,4 +226,50 @@ export async function guardarSincronizados(productos, idsPurgados = []) {
       if (porId.get(id)?.eliminado) await peticion(almacen.delete(id));
     }
   });
+}
+
+// ---------- Fotos reales (fotos-reales, design.md §3) ----------
+
+// Guarda (o reemplaza) la imagen de una foto real. No avisa de cambio local: ya lo hace
+// el alta o la edición del producto que la usa.
+export async function guardarFoto(nombre, blob, { subida = false } = {}) {
+  const registro = { nombre, blob, subida, creada: new Date().toISOString() };
+  await enTransaccion('readwrite', (almacen) => peticion(almacen.put(registro)), ALMACEN_FOTOS);
+}
+
+// La imagen (Blob) de la foto, o null si no está en el dispositivo.
+export async function obtenerFoto(nombre) {
+  const registro = await enTransaccion('readonly', (almacen) => peticion(almacen.get(nombre)), ALMACEN_FOTOS);
+  return registro?.blob ?? null;
+}
+
+// [{ nombre, subida, creada }] de todas las fotos, sin cargar las imágenes en el
+// resultado (se recorre con un cursor y se copian solo esos campos).
+export async function listarFotos() {
+  return enTransaccion('readonly', (almacen) => new Promise((resolver, rechazar) => {
+    const fotos = [];
+    const cursor = almacen.openCursor();
+    cursor.onsuccess = () => {
+      const actual = cursor.result;
+      if (!actual) {
+        resolver(fotos);
+        return;
+      }
+      const { nombre, subida, creada } = actual.value;
+      fotos.push({ nombre, subida, creada });
+      actual.continue();
+    };
+    cursor.onerror = () => rechazar(cursor.error);
+  }), ALMACEN_FOTOS);
+}
+
+export async function marcarFotoSubida(nombre) {
+  await enTransaccion('readwrite', async (almacen) => {
+    const registro = await peticion(almacen.get(nombre));
+    if (registro && !registro.subida) await peticion(almacen.put({ ...registro, subida: true }));
+  }, ALMACEN_FOTOS);
+}
+
+export async function borrarFoto(nombre) {
+  await enTransaccion('readwrite', (almacen) => peticion(almacen.delete(nombre)), ALMACEN_FOTOS);
 }
