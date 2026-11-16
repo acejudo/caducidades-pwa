@@ -84,10 +84,12 @@ export function crearClienteDrive({ token, fetch = globalThis.fetch.bind(globalT
   }
 
   return {
-    // Archivos caducidades.json propios o compartidos con la cuenta, el más antiguo primero.
+    // Archivos caducidades.json propios o compartidos con la cuenta, el más antiguo primero,
+    // con su dueño: el sincronizador solo acepta los de cuentas autorizadas.
     async buscarListas() {
       const q = `name = '${DRIVE_ARCHIVO}' and trashed = false and mimeType != '${TIPO_CARPETA}'`;
-      const { files = [] } = await pedirJson(url(API, { q, orderBy: 'createdTime', fields: 'files(id,createdTime,version)' }));
+      const fields = 'files(id,createdTime,version,ownedByMe,owners(emailAddress))';
+      const { files = [] } = await pedirJson(url(API, { q, orderBy: 'createdTime', fields }));
       return files;
     },
 

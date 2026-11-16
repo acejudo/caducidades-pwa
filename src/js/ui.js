@@ -9,7 +9,7 @@ import { crearPantallaElegirFoto } from './elegir-foto.js';
 import { crearPantallaDetalle } from './detalle.js';
 import { volver, reemplazar } from './router.js';
 import {
-  sesionActual, iniciarSesion, cerrarSesion, cargarGoogle, tokenVigente, renovarToken, olvidarToken,
+  sesionActual, iniciarSesion, cerrarSesion, cargarGoogle, tokenVigente, renovarToken, olvidarToken, esEmailAutorizado,
 } from './auth.js';
 import { crearSincronizador } from './sincronizador.js';
 import { crearBotonSincronizacion, crearSeccionSincronizacion } from './estado-sincronizacion.js';
@@ -17,7 +17,7 @@ import { crearBotonSincronizacion, crearSeccionSincronizacion } from './estado-s
 // ---------- Sincronización con Drive ----------
 
 export const sincronizador = crearSincronizador({
-  auth: { sesionActual, tokenVigente, renovarToken, olvidarToken },
+  auth: { sesionActual, tokenVigente, renovarToken, olvidarToken, esEmailAutorizado },
 });
 
 let sincronizacionIniciada = false;

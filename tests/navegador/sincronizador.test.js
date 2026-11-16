@@ -42,16 +42,20 @@ function producto(id, cambios = {}) {
 
 // ---------- Dobles ----------
 
-// Drive en memoria con la interfaz de crearClienteDrive.
+// Drive en memoria con la interfaz de crearClienteDrive. Cada archivo tiene dueño: por
+// defecto, la propia cuenta (a@example.com).
+const PROPIA = 'a@example.com';
 function crearDriveFalso() {
-  const archivos = new Map(); // id → { texto, version, createdTime }
+  const archivos = new Map(); // id → { texto, version, createdTime, ownedByMe, owners }
+  const accesos = []; // 'leer:<id>', 'escribir:<id>'... para saber qué archivos se tocan
   const fallos = {}; // método → error que lanza la próxima llamada
   const ganchos = {}; // método → función que se ejecuta tras la llamada (una vez)
   const llamadas = [];
   let contador = 0;
 
-  const llamar = async (metodo, fn) => {
+  const llamar = async (metodo, fn, id) => {
     llamadas.push(metodo);
+    if (id !== undefined) accesos.push(`${metodo}:${id}`);
     if (fallos[metodo]) {
       const error = fallos[metodo];
       delete fallos[metodo];
@@ -74,19 +78,21 @@ function crearDriveFalso() {
   const cliente = {
     buscarListas: () => llamar('buscarListas', () => [...archivos.entries()]
       .sort(([, a], [, b]) => a.createdTime.localeCompare(b.createdTime))
-      .map(([id, a]) => ({ id, createdTime: a.createdTime, version: String(a.version) }))),
-    leer: (id) => llamar('leer', () => ({ texto: archivo(id).texto, version: String(archivo(id).version) })),
-    version: (id) => llamar('version', () => String(archivo(id).version)),
+      .map(([id, a]) => ({
+        id, createdTime: a.createdTime, version: String(a.version), ownedByMe: a.ownedByMe, owners: a.owners,
+      }))),
+    leer: (id) => llamar('leer', () => ({ texto: archivo(id).texto, version: String(archivo(id).version) }), id),
+    version: (id) => llamar('version', () => String(archivo(id).version), id),
     escribir: (id, texto) => llamar('escribir', () => {
       const a = archivo(id);
       a.texto = texto;
       a.version += 1;
       return String(a.version);
-    }),
+    }, id),
     crearLista: (texto) => llamar('crearLista', () => {
       contador += 1;
       const id = `creada-${contador}`;
-      archivos.set(id, { texto, version: 1, createdTime: AHORA.toISOString() });
+      archivos.set(id, { texto, version: 1, createdTime: AHORA.toISOString(), ownedByMe: true, owners: [{ emailAddress: PROPIA }] });
       return { id, version: '1' };
     }),
   };
@@ -94,10 +100,19 @@ function crearDriveFalso() {
   return {
     cliente,
     llamadas,
+    accesos,
+    tocado: (id) => accesos.some((a) => a.endsWith(`:${id}`)),
     fallar: (metodo, error) => { fallos[metodo] = error; },
     despuesDe: (metodo, fn) => { ganchos[metodo] = fn; },
-    poner(id, productos, createdTime = '2026-11-01T00:00:00.000Z') {
-      archivos.set(id, { texto: sincronizacion.crearArchivo(productos, AHORA), version: 1, createdTime });
+    // `dueno`: email del dueño (null = sin dueño legible). Es propio si es PROPIA.
+    poner(id, productos, createdTime = '2026-11-01T00:00:00.000Z', dueno = PROPIA) {
+      archivos.set(id, {
+        texto: sincronizacion.crearArchivo(productos, AHORA),
+        version: 1,
+        createdTime,
+        ownedByMe: dueno === PROPIA,
+        owners: dueno ? [{ emailAddress: dueno }] : undefined,
+      });
     },
     productos: (id) => JSON.parse(archivos.get(id).texto).productos,
     archivos,
@@ -118,6 +133,8 @@ function crearAuthFalso({ sesion = true, token = 'tok' } = {}) {
       return auth.respuestaRenovar;
     },
     olvidarToken: () => { auth.olvidados += 1; auth.token = null; },
+    // Lista blanca: la propia cuenta y ana@example.com.
+    esEmailAutorizado: async (email) => ['a@example.com', 'ana@example.com'].includes(String(email).trim().toLowerCase()),
   };
   return auth;
 }
@@ -181,7 +198,7 @@ antesDeCada(async () => {
 // ---------- Localizar y crear la lista ----------
 
 prueba('Lista compartida por otra cuenta', async () => {
-  driveFalso.poner('de-A', [producto('q', { nombre: 'Queso de A' })]);
+  driveFalso.poner('de-A', [producto('q', { nombre: 'Queso de A' })], undefined, 'ana@example.com');
   await crear().sincronizar();
   igualProfundo(await nombres(), ['Queso de A']);
   igual(prefs.leer().archivoId, 'de-A', 'recuerda el archivo');
@@ -487,4 +504,83 @@ prueba('avisa a los suscriptores al empezar y al terminar', async () => {
   igual(textos.at(-1), 'Sincronizado');
   await sinc.sincronizar();
   igual(textos.at(-1), 'Sincronizado', 'tras darse de baja no recibe más');
+});
+
+// ---------- Solo listas de cuentas autorizadas (lista-compartida-segura) ----------
+
+const PREGUNTA_CREAR = 'No hay ninguna lista en tu Drive ni compartida contigo. ¿Crear una nueva?';
+
+prueba('Lista de una cuenta no autorizada', async () => {
+  // Regresión de la auditoría (C1): un archivo ajeno más antiguo que la lista propia.
+  driveFalso.poner('ajena', [producto('x', { nombre: 'Plantado' })], '2026-10-01T00:00:00.000Z', 'desconocido@example.com');
+  driveFalso.poner('mia', [producto('m', { nombre: 'Mío' })], '2026-11-01T00:00:00.000Z');
+  const textoAjeno = driveFalso.archivos.get('ajena').texto;
+  await storage.crearProducto({ nombre: 'Notas privadas', fechaCaducidad: '2026-11-20', notas: 'secreto' });
+  await crear().sincronizar();
+  igual(prefs.leer().archivoId, 'mia');
+  igualProfundo(await nombres(), ['Mío', 'Notas privadas']);
+  igual(driveFalso.tocado('ajena'), false, JSON.stringify(driveFalso.accesos));
+  igual(driveFalso.archivos.get('ajena').texto, textoAjeno, 'el archivo ajeno no cambia');
+  igual(confirmaciones.length, 0);
+});
+
+prueba('Solo hay una lista ajena no autorizada', async () => {
+  driveFalso.poner('ajena', [producto('x', { nombre: 'Plantado' })], undefined, 'desconocido@example.com');
+  respuestaConfirmar = false;
+  await crear().sincronizar();
+  igual(confirmaciones.length, 1);
+  igual(confirmaciones[0].mensaje, PREGUNTA_CREAR, 'actúa como si no hubiera lista');
+  igual(driveFalso.tocado('ajena'), false);
+  igualProfundo(await nombres(), []);
+});
+
+prueba('Lista sin dueño legible', async () => {
+  driveFalso.poner('compartida', [producto('x', { nombre: 'De una unidad compartida' })], undefined, null);
+  respuestaConfirmar = false;
+  await crear().sincronizar();
+  igual(confirmaciones[0]?.mensaje, PREGUNTA_CREAR);
+  igual(driveFalso.tocado('compartida'), false);
+});
+
+prueba('Aceptar la lista compartida', async () => {
+  driveFalso.poner('de-ana', [producto('q', { nombre: 'Queso de Ana' })], undefined, 'ana@example.com');
+  crear();
+  await sinc.sincronizar();
+  igual(confirmaciones.length, 1);
+  verdadero(confirmaciones[0].mensaje.includes('¿Usar la lista compartida por ana@example.com?'), confirmaciones[0].mensaje);
+  igualProfundo(await nombres(), ['Queso de Ana']);
+  igual(prefs.leer().archivoId, 'de-ana');
+  await sinc.sincronizar();
+  igual(confirmaciones.length, 1, 'no vuelve a preguntar');
+});
+
+prueba('Rechazar la lista compartida', async () => {
+  driveFalso.poner('de-ana', [producto('q', { nombre: 'Queso de Ana' })], undefined, 'ana@example.com');
+  await storage.crearProducto({ nombre: 'Leche', fechaCaducidad: '2026-11-20' });
+  respuestaConfirmar = false;
+  await crear().sincronizar();
+  igual(driveFalso.tocado('de-ana'), false, 'no se descarga ni se modifica');
+  igual(driveFalso.archivos.size, 1, 'no se crea ninguna lista nueva');
+  igual(prefs.leer().archivoId, null);
+  igualProfundo(await nombres(), ['Leche']);
+  igual(estado().pendiente, true);
+  igual(estado().texto, 'Cambios pendientes');
+});
+
+prueba('Lista propia sin pregunta', async () => {
+  driveFalso.poner('mia', [producto('m', { nombre: 'Mío' })]);
+  await crear().sincronizar();
+  igual(confirmaciones.length, 0);
+  igualProfundo(await nombres(), ['Mío']);
+});
+
+prueba('la lista compartida en automático solo se pregunta una vez por sesión', async () => {
+  driveFalso.poner('de-ana', [producto('q')], undefined, 'ana@example.com');
+  respuestaConfirmar = false;
+  crear();
+  await sinc.sincronizar();
+  await sinc.sincronizar();
+  igual(confirmaciones.length, 1);
+  await sinc.sincronizar({ aPeticion: true });
+  igual(confirmaciones.length, 2, 'a petición sí pregunta');
 });

@@ -102,6 +102,13 @@ async function emailAutorizado(email) {
   return EMAILS_AUTORIZADOS_SHA256.includes(await hashEmail(email));
 }
 
+// Para la sincronización: solo valen listas de Drive cuyo dueño está en la lista blanca
+// (drive-sync, "Localizar la lista"). hashEmail ya normaliza mayúsculas y espacios.
+export async function esEmailAutorizado(email) {
+  if (typeof email !== 'string' || !email.trim()) return false;
+  return emailAutorizado(email);
+}
+
 // Borra la sesión guardada si su email ya no está en la lista de autorizados.
 export async function revalidarSesion() {
   const sesion = sesionActual();

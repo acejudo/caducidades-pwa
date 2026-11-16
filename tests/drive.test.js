@@ -38,11 +38,14 @@ beforeEach(() => {
 
 describe('Cliente de Drive', () => {
   test('buscarListas pide caducidades.json fuera de la papelera, por fecha de creación', async () => {
-    regla((p) => p.url.pathname === '/drive/v3/files', () => json({
-      files: [{ id: 'a', createdTime: '2026-11-01T10:00:00.000Z', version: '7' }, { id: 'b', createdTime: '2026-11-05T10:00:00.000Z', version: '2' }],
-    }));
+    const archivos = [
+      { id: 'a', createdTime: '2026-11-01T10:00:00.000Z', version: '7', ownedByMe: true, owners: [{ emailAddress: 'yo@example.com' }] },
+      { id: 'b', createdTime: '2026-11-05T10:00:00.000Z', version: '2', ownedByMe: false, owners: [{ emailAddress: 'ana@example.com' }] },
+    ];
+    regla((p) => p.url.pathname === '/drive/v3/files', () => json({ files: archivos }));
     const listas = await cliente().buscarListas();
     assert.deepEqual(listas.map((l) => l.id), ['a', 'b']);
+    assert.deepEqual(listas, archivos, 'devuelve el dueño de cada lista (lista-compartida-segura)');
     const [p] = peticiones;
     assert.equal(p.url.origin, 'https://www.googleapis.com');
     assert.equal(p.metodo, 'GET');
@@ -55,6 +58,8 @@ describe('Cliente de Drive', () => {
     assert.match(p.url.searchParams.get('fields'), /id/);
     assert.match(p.url.searchParams.get('fields'), /createdTime/);
     assert.match(p.url.searchParams.get('fields'), /version/);
+    assert.match(p.url.searchParams.get('fields'), /ownedByMe/);
+    assert.match(p.url.searchParams.get('fields'), /owners\(emailAddress\)/);
   });
 
   test('buscarListas sin resultados devuelve una lista vacía', async () => {

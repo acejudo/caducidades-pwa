@@ -72,6 +72,7 @@ export function crearSincronizador({
   let otraVezAPeticion = false;
   let cambioDurante = false;
   let preguntadoCrear = false;
+  let preguntadoLista = false;
   let espera = null;
   const suscriptores = new Set();
 
@@ -104,9 +105,41 @@ export function crearSincronizador({
 
   // ---------- Pasos de una sincronización ----------
 
+  // Email del dueño de una lista si es una cuenta autorizada (o la propia); null si no vale.
+  // Las listas sin dueño legible (unidades compartidas) o de cuentas fuera de la lista
+  // blanca nunca se leen ni se escriben (lista-compartida-segura).
+  async function duenoAutorizado(lista) {
+    const [dueno, ...otros] = lista.owners ?? [];
+    if (lista.ownedByMe === true) return dueno?.emailAddress ?? '';
+    if (!dueno?.emailAddress || otros.length > 0) return null;
+    return (await auth.esEmailAutorizado(dueno.emailAddress)) ? dueno.emailAddress : null;
+  }
+
+  // La lista válida más antigua, o null.
+  async function elegirLista(drive) {
+    for (const lista of await drive.buscarListas()) {
+      const dueno = await duenoAutorizado(lista);
+      if (dueno !== null) return { ...lista, dueno };
+    }
+    return null;
+  }
+
   async function localizar(drive, aPeticion) {
-    const [lista] = await drive.buscarListas();
+    const lista = await elegirLista(drive);
     if (lista) {
+      if (!lista.ownedByMe) {
+        // Usar la lista de otra cuenta es una decisión explícita la primera vez. En
+        // automático se pregunta como mucho una vez por sesión de la app.
+        if (!aPeticion && preguntadoLista) throw new SinLista();
+        preguntadoLista = true;
+        const usar = await confirmar({
+          titulo: '¿Usar la lista compartida?',
+          mensaje: `¿Usar la lista compartida por ${lista.dueno}? Tus productos se juntarán con los suyos.`,
+          aceptar: 'Usar esta lista',
+          cancelar: 'Ahora no',
+        });
+        if (!usar) throw new SinLista();
+      }
       guardar({ archivoId: lista.id });
       return lista.id;
     }
