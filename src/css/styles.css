@@ -316,8 +316,8 @@ body {
   align-items: center;
   gap: var(--espacio-3);
   width: 100%;
-  min-height: 80px;
-  padding: var(--espacio-3);
+  min-height: 64px;
+  padding: var(--espacio-2) var(--espacio-3);
   border: 2px dashed var(--color-borde);
   border-radius: var(--radio-lg);
   background: var(--color-fondo-input);
@@ -335,8 +335,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
+  width: 48px;
+  height: 48px;
   border-radius: var(--radio-md);
   overflow: hidden;
 }
@@ -619,16 +619,22 @@ body {
 
 /* ---------- Formulario de producto ---------- */
 
+/* Compacto para que el alta quepa sin scroll en el móvil (product-form). */
 .formulario {
   display: flex;
   flex-direction: column;
-  gap: var(--espacio-4);
+  gap: var(--espacio-3);
 }
 
 .campo {
   display: flex;
   flex-direction: column;
-  gap: var(--espacio-1);
+  gap: 2px;
+}
+
+/* La fila de botones fija ya cierra la pantalla: sin el margen inferior general. */
+.contenido:has(> .formulario-pantalla) {
+  padding-bottom: 0;
 }
 
 .campo__etiqueta {
@@ -1448,30 +1454,53 @@ button.detalle__foto:focus-visible {
 
 /* ---------- Avisos breves e indicador de carga (ui-feedback) ---------- */
 
+/* Píldora centrada justo debajo de la cabecera: no tapa la lista ni el botón "+". */
 .toast {
   position: fixed;
-  left: var(--espacio-4);
-  /* Deja libre la esquina del botón "+" (56 px + margen). */
-  right: calc(var(--espacio-4) + 72px);
-  bottom: calc(var(--alto-nav) + env(safe-area-inset-bottom) + var(--espacio-4));
+  top: calc(var(--alto-cabecera) + env(safe-area-inset-top) + var(--espacio-2));
+  left: 50%;
   z-index: 30;
-  padding: var(--espacio-3) var(--espacio-4);
-  border-radius: var(--radio-md);
-  background: var(--color-texto);
-  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+  width: max-content;
+  max-width: calc(100% - 2 * var(--espacio-4));
+  padding: var(--espacio-2) var(--espacio-4) var(--espacio-2) var(--espacio-2);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-completo);
+  background: var(--color-fondo);
+  color: var(--color-texto);
   font-weight: var(--peso-semi);
-  box-shadow: var(--sombra-suave);
+  box-shadow: 0 4px 16px rgb(17 24 39 / 0.14);
   pointer-events: none;
-  animation: toast-entrada 0.2s ease-out;
+  transform: translateX(-50%);
+  animation: toast-entrada 0.25s ease-out;
 }
 
 .toast[hidden] {
   display: none;
 }
 
+.toast__icono {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radio-completo);
+  background: var(--color-urgencia-verde-suave);
+  color: var(--color-urgencia-verde-texto);
+}
+
+.toast__icono svg {
+  width: 18px;
+  height: 18px;
+}
+
 @keyframes toast-entrada {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0; transform: translate(-50%, -12px); }
+  to { opacity: 1; transform: translateX(-50%); }
 }
 
 .cargando {

@@ -2,7 +2,8 @@
 // (toasts) e indicador de carga. Spec: openspec/specs/ui-feedback. Necesita el DOM: se
 // prueba en tests/navegador/feedback.test.js. No importa ui.js, auth.js ni config.js.
 
-import { el } from './utils.js';
+import { ICONOS } from './iconos.js';
+import { el, icono } from './utils.js';
 
 const DURACION_MS = 3000;
 const RETRASO_CARGA_MS = 300;
@@ -12,17 +13,21 @@ const RETRASO_CARGA_MS = 300;
 // Una región por raíz: un aviso nuevo sustituye al anterior y reinicia la duración.
 const regiones = new Map(); // raíz → { region, temporizador }
 
-// Muestra `texto` unos segundos sobre la navegación inferior. Se anuncia a los lectores de
-// pantalla (role="status") y no bloquea los toques (pointer-events: none en el CSS).
+// Muestra `texto` unos segundos en una píldora con un check, arriba, bajo la cabecera. Se
+// anuncia a los lectores de pantalla (role="status") y no bloquea los toques
+// (pointer-events: none en el CSS).
 export function mostrarAviso(texto, { duracion = DURACION_MS, raiz = document.body } = {}) {
   let estado = regiones.get(raiz);
   if (!estado || !estado.region.isConnected) {
-    estado = { region: el('div', { class: 'toast', role: 'status', 'aria-live': 'polite', hidden: true }), temporizador: null };
-    raiz.append(estado.region);
+    const mensaje = el('span', { class: 'toast__texto' });
+    const region = el('div', { class: 'toast', role: 'status', 'aria-live': 'polite', hidden: true },
+      el('span', { class: 'toast__icono' }, icono(ICONOS.check)), mensaje);
+    estado = { region, mensaje, temporizador: null };
+    raiz.append(region);
     regiones.set(raiz, estado);
   }
   clearTimeout(estado.temporizador);
-  estado.region.textContent = texto;
+  estado.mensaje.textContent = texto;
   estado.region.hidden = false;
   estado.temporizador = setTimeout(() => {
     estado.region.hidden = true;

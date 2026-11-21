@@ -7,7 +7,7 @@ Define cómo informa la app de lo que acaba de pasar y de lo que está haciendo:
 ## ADDED Requirements
 
 ### Requirement: Aviso breve tras guardar o eliminar
-Tras guardar un producto (alta o edición), la app SHALL mostrar un aviso breve "Producto guardado"; tras eliminarlo, desde cualquier pantalla, "Producto eliminado". El aviso MUST verse sobre la navegación inferior sin tapar el botón "+", anunciarse a los lectores de pantalla y desaparecer solo a los 3 segundos. Si llega otro aviso, MUST sustituir al anterior.
+Tras guardar un producto (alta o edición), la app SHALL mostrar un aviso breve "Producto guardado"; tras eliminarlo, desde cualquier pantalla, "Producto eliminado". El aviso MUST verse arriba, justo debajo de la cabecera, como una píldora centrada con un check, sin tapar el botón "+"; anunciarse a los lectores de pantalla y desaparecer solo a los 3 segundos. Si llega otro aviso, MUST sustituir al anterior.
 
 #### Scenario: Guardar un producto
 - **WHEN** el usuario guarda "Yogur" en Nuevo producto

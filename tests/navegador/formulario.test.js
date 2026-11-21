@@ -712,9 +712,11 @@ zonaMovilFormulario.addEventListener('click', (evento) => {
   if (evento.target.closest('a')) evento.preventDefault();
 });
 
-// Alto disponible para el formulario en 390×844: pantalla menos la cabecera (56 px) y los
-// márgenes superior (16 px) e inferior (32 px) del contenido.
-const ALTO_DISPONIBLE = 844 - 56 - 16 - 32;
+// Alto disponible para el formulario en 390×844 con la app instalada en un iPhone: pantalla
+// menos la cabecera (56 px), la zona segura superior (47 px, la barra de estado), el margen
+// superior del contenido (16 px) y la zona segura inferior (34 px, la barra de inicio). En
+// el formulario no hay margen inferior: la fila de botones fija ya cierra la pantalla.
+const ALTO_DISPONIBLE = 844 - 56 - 47 - 16 - 34;
 
 async function montarEnMovil(opciones = {}) {
   await cargarEstilosFormulario();

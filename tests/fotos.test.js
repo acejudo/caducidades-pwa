@@ -103,7 +103,8 @@ describe('Archivos de las fotos predeterminadas', () => {
       const svg = readFileSync(ruta, 'utf8');
       assert.match(svg, /<svg[^>]*viewBox="0 0 96 96"/, `${id}.svg sin viewBox`);
       assert.doesNotMatch(svg, /<script|\son\w+=/i, `${id}.svg con contenido activo`);
-      assert.doesNotMatch(svg, /href=|url\(/i, `${id}.svg con referencias`);
+      // Solo se permiten referencias internas (url(#degradado)); nada externo.
+      assert.doesNotMatch(svg, /href=|url\((?!#)/i, `${id}.svg con referencias externas`);
       assert.ok(statSync(ruta).size < 4096, `${id}.svg pesa 4 KB o más`);
     }
   });

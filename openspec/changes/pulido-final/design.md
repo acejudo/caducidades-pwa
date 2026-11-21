@@ -91,7 +91,7 @@ La prueba de navegador "Alta sin scroll" monta el formulario con los estilos de 
 **Avisos breves:**
 - `mostrarAviso(texto, { duracion = 3000, raiz = document.body } = {})`. Crea la primera vez una región `<div class="toast" role="status" aria-live="polite">` en `raiz`; después cambia su texto y reinicia el temporizador.
 - `ocultarAvisos()` es para las pruebas.
-- **Posición:** `position: fixed`, encima de la navegación inferior (`bottom: calc(var(--alto-nav) + var(--espacio-3) + env(safe-area-inset-bottom))`), centrado y desplazado a la izquierda del botón "+" para no taparlo. Fondo `--color-texto` y texto blanco, con contraste AAA. Con `prefers-reduced-motion` no hay transición.
+- **Posición** (cambiada tras probarla en el móvil el 2026-11-21: abajo se mezclaba con la lista y quedaba pegada al "+"): `position: fixed`, arriba, justo debajo de la cabecera (`top: calc(var(--alto-cabecera) + env(safe-area-inset-top) + var(--espacio-2))`), centrada y con su ancho natural en una línea. Es una píldora blanca con borde, sombra y un check verde (`--color-urgencia-verde-*`), y entra deslizándose desde arriba. Con `prefers-reduced-motion` no hay transición.
 
 **Dónde se llama:** las pantallas reciben `avisar = mostrarAviso` como dependencia, para sustituirla en las pruebas.
 - `formulario.js`, tras guardar bien, antes de navegar: "Producto guardado". Tras eliminar: "Producto eliminado".

@@ -103,7 +103,7 @@ function zonaDeFoto(href, foto, { imagen, obtenerFoto: leerFoto }) {
     return { zona, pintada: Promise.resolve() };
   }
   const marco = el('span', { class: 'zona-foto__imagen' });
-  const pintada = pintarFoto(marco, { foto }, { imagen, obtenerFoto: leerFoto, ancho: 56, alto: 56 });
+  const pintada = pintarFoto(marco, { foto }, { imagen, obtenerFoto: leerFoto, ancho: 48, alto: 48 });
   const zona = el('a', { href, class: 'zona-foto zona-foto--con-foto' },
     marco,
     el('span', { class: 'zona-foto__texto' },
