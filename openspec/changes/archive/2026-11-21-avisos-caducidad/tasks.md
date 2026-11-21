@@ -43,7 +43,7 @@
 
 - [x] 6.1 Ejecutar `npm test` y `npm run test:navegador` y verificar que todo está en verde.
 - [x] 6.2 Recorrido con `node scripts/captura-app.mjs --ruta listado --productos <productos con caducados y próximos>`: captura del aviso a 390 px y, con `--script`, tocar el aviso (filtro activo), cerrarlo e ir a Ajustes, desactivar el interruptor y volver (sin aviso). Sin errores en la consola. Capturas en el scratchpad.
-- [ ] 6.3 Manual en el móvil (tras desplegar): con algún producto caducado o a punto de caducar, al abrir la app sale el aviso; tocarlo lleva al filtro; cerrarlo y navegar no lo hace volver; desactivarlo en Ajustes lo quita, y sigue desactivado tras cerrar y abrir la app. El navegador no pide permiso de notificaciones.
+- [x] 6.3 Manual en el móvil (tras desplegar): con algún producto caducado o a punto de caducar, al abrir la app sale el aviso; tocarlo lleva al filtro; cerrarlo y navegar no lo hace volver; desactivarlo en Ajustes lo quita, y sigue desactivado tras cerrar y abrir la app. El navegador no pide permiso de notificaciones.
 
 ## Workflow follow-up
 
