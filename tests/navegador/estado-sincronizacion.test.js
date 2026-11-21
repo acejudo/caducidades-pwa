@@ -159,3 +159,51 @@ prueba('fuera del documento se da de baja', () => {
   sinc.publicar({ pendiente: true });
   igual(sinc.suscriptores.size, 0);
 });
+
+// ---------- Aviso de cambios sin sincronizar (pulido-final) ----------
+
+const PENDIENTE_SIN_TOKEN = Object.freeze({ pendiente: true, tokenVigente: false });
+
+function montarAviso(inicial) {
+  sinc = crearSincronizadorFalso(inicial);
+  const { elemento } = vista.crearAvisoSincronizacion({ sincronizador: sinc });
+  zona.replaceChildren(elemento);
+  return elemento;
+}
+
+prueba('Abrir la app con cambios pendientes', () => {
+  const aviso = montarAviso(PENDIENTE_SIN_TOKEN);
+  igual(aviso.hidden, false);
+  igual(texto(aviso), 'Hay cambios sin sincronizar. Toca para sincronizar');
+  igual(aviso.tagName, 'BUTTON');
+  verdadero(aviso.querySelector('svg'), 'falta el icono');
+});
+
+prueba('Tocar el aviso', () => {
+  const aviso = montarAviso(PENDIENTE_SIN_TOKEN);
+  aviso.click();
+  igualProfundo(sinc.peticiones, [{ aPeticion: true }]);
+});
+
+prueba('el aviso desaparece al sincronizar y al quedar sin cambios', () => {
+  const aviso = montarAviso(PENDIENTE_SIN_TOKEN);
+  sinc.publicar({ fase: 'sincronizando' });
+  igual(aviso.hidden, true, 'oculto mientras sincroniza');
+  sinc.publicar({ fase: 'inactivo', pendiente: false, tokenVigente: true });
+  igual(aviso.hidden, true, 'oculto sin cambios pendientes');
+});
+
+prueba('Aviso: Sin cambios pendientes', () => {
+  igual(montarAviso({ pendiente: false, tokenVigente: false }).hidden, true);
+});
+
+prueba('Aviso: Sin conexión', () => {
+  igual(montarAviso({ ...PENDIENTE_SIN_TOKEN, enLinea: false }).hidden, true);
+});
+
+prueba('Sin ventana de Google por su cuenta', () => {
+  montarAviso(PENDIENTE_SIN_TOKEN);
+  sinc.publicar({ fase: 'error' });
+  sinc.publicar({ fase: 'inactivo' });
+  igual(sinc.peticiones.length, 0, 'sin tocarlo nunca sincroniza');
+});

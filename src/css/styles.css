@@ -310,41 +310,53 @@ body {
   font-weight: var(--peso-semi);
 }
 
-.tarjeta__meta {
-  font-size: var(--texto-fecha);
-  color: var(--color-texto-secundario);
-}
-
+/* Zona de foto compacta: miniatura (o cámara) a la izquierda y el texto al lado. */
 .zona-foto {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: var(--espacio-2);
+  gap: var(--espacio-3);
   width: 100%;
-  min-height: 160px;
+  min-height: 80px;
+  padding: var(--espacio-3);
   border: 2px dashed var(--color-borde);
   border-radius: var(--radio-lg);
   background: var(--color-fondo-input);
   color: var(--color-texto-secundario);
 }
 
-/* Con foto elegida: borde continuo, la imagen y su nombre. */
+/* Con foto elegida: borde continuo, la miniatura y su nombre. */
 .zona-foto--con-foto {
-  gap: var(--espacio-1);
   border-style: solid;
   background: var(--color-fondo-foto);
-  padding: var(--espacio-3);
 }
 
 .zona-foto__imagen {
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 96px;
-  height: 96px;
+  width: 56px;
+  height: 56px;
   border-radius: var(--radio-md);
   overflow: hidden;
+}
+
+.zona-foto__imagen--camara {
+  border-radius: var(--radio-completo);
+  background: var(--color-primario-suave);
+  color: var(--color-primario);
+}
+
+.zona-foto__imagen--camara svg {
+  width: 28px;
+  height: 28px;
+}
+
+.zona-foto__texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
 .zona-foto__imagen img {
@@ -493,6 +505,27 @@ body {
   border-bottom-color: var(--color-primario);
   color: var(--color-primario);
   font-weight: var(--peso-semi);
+}
+
+/* "Pronto" y "Caducadas" con su color de urgencia (tonos de texto con contraste AA). */
+#filtro-pronto {
+  color: var(--color-urgencia-naranja-texto);
+}
+
+#filtro-caducadas {
+  color: var(--color-urgencia-rojo-texto);
+}
+
+#filtro-pronto[aria-selected="true"] {
+  border-bottom-color: var(--color-urgencia-naranja-texto);
+}
+
+#filtro-caducadas[aria-selected="true"] {
+  border-bottom-color: var(--color-urgencia-rojo-texto);
+}
+
+.pestana:active {
+  background: var(--color-fondo-input);
 }
 
 .pestana:focus-visible {
@@ -683,12 +716,14 @@ textarea.campo__control {
   flex: 1;
 }
 
+/* Fila fija: "Cancelar" a la izquierda y "Guardar" a la derecha; el aviso de error, si lo
+   hay, encima y a todo el ancho. En el DOM "Guardar" va antes (es el botón de envío). */
 .formulario__acciones {
   position: sticky;
   bottom: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--espacio-2);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--espacio-2) var(--espacio-3);
   margin: 0 calc(-1 * var(--espacio-4));
   padding: var(--espacio-3) var(--espacio-4) calc(var(--espacio-3) + env(safe-area-inset-bottom));
   background: var(--color-fondo);
@@ -711,6 +746,15 @@ textarea.campo__control {
 
 .formulario__peligro {
   padding-top: var(--espacio-2);
+}
+
+.formulario__acciones .formulario__aviso {
+  grid-column: 1 / -1;
+  order: -2;
+}
+
+.formulario__cancelar {
+  order: -1;
 }
 
 .formulario__aviso {
@@ -966,9 +1010,26 @@ textarea.campo__control {
   height: 64px;
 }
 
-/* La foto real llena todo el recuadro. */
+/* La foto real va en un recuadro 4:3 (recorta menos las fotos verticales) y la llena. */
 .detalle__foto {
   overflow: hidden;
+  width: 100%;
+  border: 0;
+  padding: 0;
+  font: inherit;
+}
+
+button.detalle__foto {
+  cursor: zoom-in;
+}
+
+button.detalle__foto:focus-visible {
+  outline: 2px solid var(--color-primario);
+  outline-offset: 2px;
+}
+
+.detalle__foto--real {
+  aspect-ratio: 4 / 3;
 }
 
 .detalle__foto .foto-real {
@@ -1009,22 +1070,49 @@ textarea.campo__control {
   border-top: 1px solid var(--color-borde);
 }
 
+/* Cada dato con su icono a la izquierda, ocupando las dos líneas (etiqueta y valor). */
 .detalle__dato {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  column-gap: var(--espacio-3);
+  row-gap: 2px;
+  align-items: center;
   padding: var(--espacio-3) 0;
   border-bottom: 1px solid var(--color-borde);
 }
 
 .detalle__dato dt {
+  display: contents;
   font-size: var(--texto-secundario);
   color: var(--color-texto-secundario);
 }
 
+.detalle__dato dt > svg {
+  grid-row: 1 / 3;
+  grid-column: 1;
+  width: 26px;
+  height: 26px;
+  color: var(--color-texto-secundario);
+}
+
+.detalle__dato dt > span {
+  grid-column: 2;
+}
+
 .detalle__dato dd {
+  grid-column: 2;
   margin: 0;
   font-weight: var(--peso-medio);
+}
+
+.etiqueta {
+  display: inline-block;
+  padding: 2px var(--espacio-2);
+  border-radius: var(--radio-completo);
+  background: var(--color-primario-suave);
+  color: var(--color-primario);
+  font-size: var(--texto-fecha);
+  font-weight: var(--peso-semi);
 }
 
 .detalle__subtitulo {
@@ -1169,6 +1257,20 @@ textarea.campo__control {
   letter-spacing: 0.04em;
 }
 
+/* Bloque de Drive centrado, como en el mockup (icono genérico de nube: sin logos de marca). */
+.ajustes-sync__drive {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--espacio-1);
+  padding: var(--espacio-2) 0;
+}
+
+.ajustes-sync__nube {
+  display: flex;
+  color: var(--color-primario);
+}
+
 .ajustes-sync__servicio {
   font-size: var(--texto-producto);
   font-weight: var(--peso-semi);
@@ -1176,6 +1278,12 @@ textarea.campo__control {
 
 .ajustes-sync__estado {
   font-weight: var(--peso-medio);
+}
+
+.ajustes-sync__estado,
+.ajustes-sync__ultima,
+.ajustes-sync__error {
+  text-align: center;
 }
 
 .ajustes-sync__estado[data-estado="Sincronizado"] {
@@ -1336,4 +1444,140 @@ textarea.campo__control {
 .interruptor:focus-visible {
   outline: 2px solid var(--color-primario);
   outline-offset: 2px;
+}
+
+/* ---------- Avisos breves e indicador de carga (ui-feedback) ---------- */
+
+.toast {
+  position: fixed;
+  left: var(--espacio-4);
+  /* Deja libre la esquina del botón "+" (56 px + margen). */
+  right: calc(var(--espacio-4) + 72px);
+  bottom: calc(var(--alto-nav) + env(safe-area-inset-bottom) + var(--espacio-4));
+  z-index: 30;
+  padding: var(--espacio-3) var(--espacio-4);
+  border-radius: var(--radio-md);
+  background: var(--color-texto);
+  color: #FFFFFF;
+  font-weight: var(--peso-semi);
+  box-shadow: var(--sombra-suave);
+  pointer-events: none;
+  animation: toast-entrada 0.2s ease-out;
+}
+
+.toast[hidden] {
+  display: none;
+}
+
+@keyframes toast-entrada {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.cargando {
+  padding: var(--espacio-6) 0;
+  text-align: center;
+  color: var(--color-texto-secundario);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast { animation: none; }
+}
+
+/* ---------- Aviso de cambios sin sincronizar (sync-status) ---------- */
+
+.aviso-sincronizacion {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+  width: 100%;
+  min-height: 48px;
+  margin-bottom: var(--espacio-3);
+  padding: var(--espacio-2) var(--espacio-3);
+  border: 1px solid var(--color-primario);
+  border-radius: var(--radio-md);
+  background: var(--color-primario-suave);
+  color: var(--color-primario);
+  font: inherit;
+  font-size: var(--texto-fecha);
+  font-weight: var(--peso-semi);
+  text-align: left;
+  cursor: pointer;
+}
+
+.aviso-sincronizacion[hidden] {
+  display: none;
+}
+
+.aviso-sincronizacion > svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+}
+
+.aviso-sincronizacion:focus-visible {
+  outline: 2px solid var(--color-primario);
+  outline-offset: 2px;
+}
+
+/* ---------- Visor de la foto (product-detail) ---------- */
+
+.visor-foto {
+  width: 100vw;
+  max-width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0;
+  padding: calc(var(--espacio-4) + env(safe-area-inset-top)) var(--espacio-4) calc(var(--espacio-4) + env(safe-area-inset-bottom));
+  border: 0;
+  background: #000000;
+}
+
+.visor-foto[open] {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espacio-4);
+}
+
+.visor-foto::backdrop {
+  background: rgb(0 0 0 / 0.9);
+}
+
+.visor-foto__imagen {
+  max-width: 100%;
+  max-height: calc(100% - 64px);
+  object-fit: contain;
+}
+
+.visor-foto__cerrar {
+  min-width: 140px;
+}
+
+/* ---------- Estados al pasar el ratón (solo con puntero) y al pulsar ---------- */
+
+.foto:active,
+.nav-inferior__item:active {
+  filter: brightness(0.95);
+}
+
+@media (hover: hover) {
+  .btn:not(:disabled):hover {
+    filter: brightness(0.94);
+  }
+
+  .tarjeta--producto:hover,
+  .foto:hover,
+  .pestana:hover,
+  .cabecera__accion:not(:disabled):hover,
+  .zona-foto:hover {
+    background-color: var(--color-fondo-input);
+  }
+
+  .aviso-caducidad__ver:hover,
+  .aviso-caducidad__cerrar:hover,
+  .aviso-sincronizacion:hover {
+    filter: brightness(0.96);
+  }
 }

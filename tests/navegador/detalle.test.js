@@ -276,3 +276,108 @@ prueba('Detalle con foto real y almacén parcial', async () => {
   const foto = raiz.querySelector('.detalle__foto');
   await esperarHasta(() => foto.querySelector('img')?.getAttribute('src')?.startsWith('blob:'));
 });
+
+// ---------- Foto 4:3, visor y avisos (pulido-final) ----------
+
+const visorAbierto = () => document.querySelector('dialog.visor-foto');
+
+function cerrarVisores() {
+  for (const dialogo of document.querySelectorAll('dialog.visor-foto')) {
+    if (dialogo.open) dialogo.close();
+    dialogo.remove();
+  }
+}
+
+async function montarConFotoReal() {
+  await storage.guardarFoto(FOTO_REAL, await imagenReal(), { subida: true });
+  const p = await storage.crearProducto({ ...LECHE, foto: { tipo: 'real', valor: FOTO_REAL } });
+  const raiz = await montar(p.id);
+  const contenedor = raiz.querySelector('.detalle__foto');
+  await esperarHasta(() => contenedor.querySelector('img.foto-real'));
+  return { raiz, contenedor };
+}
+
+prueba('Foto vertical', async () => {
+  const { contenedor } = await montarConFotoReal();
+  await esperarHasta(() => contenedor.classList.contains('detalle__foto--real'));
+});
+
+prueba('una foto predeterminada no usa el recuadro 4:3', async () => {
+  const p = await storage.crearProducto({ ...LECHE });
+  const raiz = await montar(p.id);
+  await new Promise((r) => setTimeout(r, 30));
+  igual(raiz.querySelector('.detalle__foto').classList.contains('detalle__foto--real'), false);
+});
+
+prueba('Abrir y cerrar la foto', async () => {
+  try {
+    const { contenedor } = await montarConFotoReal();
+    igual(contenedor.tagName, 'BUTTON');
+    igual(contenedor.getAttribute('aria-label'), 'Ver la foto a pantalla completa');
+    contenedor.click();
+    await esperarHasta(() => visorAbierto()?.open);
+    const visor = visorAbierto();
+    verdadero(visor.querySelector('img')?.src.startsWith('blob:'), 'el visor muestra la foto');
+    const cerrar = [...visor.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Cerrar');
+    verdadero(cerrar, 'falta "Cerrar"');
+    cerrar.click();
+    await esperarHasta(() => !visorAbierto());
+  } finally {
+    cerrarVisores();
+  }
+});
+
+prueba('el visor se cierra con Escape y tocando fuera de la foto', async () => {
+  try {
+    const { contenedor } = await montarConFotoReal();
+    contenedor.click();
+    await esperarHasta(() => visorAbierto()?.open);
+    visorAbierto().dispatchEvent(new Event('cancel', { cancelable: true }));
+    visorAbierto()?.close(); // Escape: el navegador cancela y cierra el diálogo
+    await esperarHasta(() => !visorAbierto());
+
+    contenedor.click();
+    await esperarHasta(() => visorAbierto()?.open);
+    visorAbierto().dispatchEvent(new MouseEvent('click', { bubbles: true })); // en el fondo, fuera de la imagen
+    await esperarHasta(() => !visorAbierto());
+  } finally {
+    cerrarVisores();
+  }
+});
+
+prueba('Foto predeterminada: sin visor', async () => {
+  try {
+    const p = await storage.crearProducto({ ...LECHE });
+    const raiz = await montar(p.id);
+    const contenedor = raiz.querySelector('.detalle__foto');
+    igual(contenedor.tagName, 'DIV', 'no es un botón');
+    contenedor.click();
+    await new Promise((r) => setTimeout(r, 30));
+    igual(visorAbierto(), null);
+  } finally {
+    cerrarVisores();
+  }
+});
+
+prueba('Eliminar desde el Detalle', async () => {
+  const avisos = [];
+  const p = await storage.crearProducto({ ...LECHE });
+  const raiz = await montar(p.id, { avisar: (texto) => avisos.push(texto) });
+  respuestaConfirmar = true;
+  boton(raiz, 'Eliminar').click();
+  await esperarA(() => navegaciones.length > 0);
+  igualProfundo(avisos, ['Producto eliminado']);
+});
+
+prueba('Lectura lenta en el Detalle', async () => {
+  let terminar;
+  const pendiente = new Promise((r) => { terminar = r; });
+  zona.replaceChildren();
+  const pantalla = detalle.crearPantallaDetalle({ id: 'lento', almacen: { obtenerProducto: () => pendiente }, retrasoCarga: 10 });
+  zona.append(pantalla.elemento);
+  await new Promise((r) => setTimeout(r, 40));
+  verdadero(pantalla.elemento.textContent.includes('Cargando…'), 'falta "Cargando…"');
+  terminar(null);
+  await pantalla.cargado;
+  verdadero(!pantalla.elemento.textContent.includes('Cargando…'), 'se quita al terminar');
+});

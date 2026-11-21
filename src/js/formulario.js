@@ -14,6 +14,7 @@ import { el, icono } from './utils.js';
 import { leerBorrador, guardarBorrador, descartarBorrador } from './borradores.js';
 import { fotoDeProducto } from './fotos.js';
 import { pintarFoto } from './fotos-reales.js';
+import { mostrarAviso, conIndicadorDeCarga } from './feedback.js';
 
 // Las pruebas lo importan desde aquí.
 export { descartarBorradores } from './borradores.js';
@@ -88,22 +89,26 @@ function campo(nombre, etiqueta, contenido, { obligatorio = false, opcional = fa
   );
 }
 
-// Zona de foto (product-form, "Zona de foto"): la imagen y su nombre si es predeterminada,
-// la foto real con "Tu foto", o la cámara si no hay foto que mostrar. Devuelve
-// { zona, pintada }: `pintada` se resuelve cuando la foto real ya se ve (o no está).
+// Zona de foto compacta, en una fila (product-form, "Zona de foto"): la miniatura y su
+// nombre si es predeterminada, la foto real con "Tu foto", o la cámara si no hay foto que
+// mostrar. Devuelve { zona, pintada }: `pintada` se resuelve cuando la foto real ya se ve.
 function zonaDeFoto(href, foto, { imagen, obtenerFoto: leerFoto }) {
   const actual = fotoDeProducto({ foto });
   if (!actual) {
     const zona = el('a', { href, class: 'zona-foto' },
-      icono(ICONOS.camara), el('span', { text: 'Toca para elegir foto' }));
+      el('span', { class: 'zona-foto__imagen zona-foto__imagen--camara' }, icono(ICONOS.camara)),
+      el('span', { class: 'zona-foto__texto' },
+        el('span', { class: 'zona-foto__nombre', text: 'Toca para elegir foto' }),
+        el('span', { class: 'zona-foto__nota', text: 'Predeterminada, cámara o galería' })));
     return { zona, pintada: Promise.resolve() };
   }
   const marco = el('span', { class: 'zona-foto__imagen' });
-  const pintada = pintarFoto(marco, { foto }, { imagen, obtenerFoto: leerFoto, ancho: 96, alto: 96 });
+  const pintada = pintarFoto(marco, { foto }, { imagen, obtenerFoto: leerFoto, ancho: 56, alto: 56 });
   const zona = el('a', { href, class: 'zona-foto zona-foto--con-foto' },
     marco,
-    el('span', { class: 'zona-foto__nombre', text: actual.tipo === 'real' ? 'Tu foto' : actual.nombre }),
-    el('span', { class: 'zona-foto__nota', text: 'Toca para cambiar' }));
+    el('span', { class: 'zona-foto__texto' },
+      el('span', { class: 'zona-foto__nombre', text: actual.tipo === 'real' ? 'Tu foto' : actual.nombre }),
+      el('span', { class: 'zona-foto__nota', text: 'Toca para cambiar' })));
   return { zona, pintada };
 }
 
@@ -120,13 +125,14 @@ function construirFormulario(valores, { edicion, hrefFoto, foto, imagen, obtener
     opciones(UNIDADES, valores.unidad));
   const categoria = control('select', 'categoria');
   categoria.append(...opciones(CATEGORIAS, valores.categoria));
-  const notas = control('textarea', 'notas', { rows: 3, placeholder: 'Añade cualquier detalle útil…' });
+  const notas = control('textarea', 'notas', { rows: 2, placeholder: 'Añade cualquier detalle útil…' });
 
   const restar = el('button', { type: 'button', class: 'cantidad__boton', 'data-accion': 'restar', 'aria-label': 'Restar uno', text: '−' });
   const sumar = el('button', { type: 'button', class: 'cantidad__boton', 'data-accion': 'sumar', 'aria-label': 'Sumar uno', text: '+' });
 
-  const guardar = el('button', { type: 'submit', class: 'btn btn--primario btn--bloque', text: 'Guardar' });
-  const cancelar = el('button', { type: 'button', class: 'btn btn--secundario btn--bloque', text: 'Cancelar' });
+  // En la fila fija, "Cancelar" a la izquierda y "Guardar" a la derecha (orden en el CSS).
+  const guardar = el('button', { type: 'submit', class: 'btn btn--primario btn--bloque formulario__guardar', text: 'Guardar' });
+  const cancelar = el('button', { type: 'button', class: 'btn btn--secundario btn--bloque formulario__cancelar', text: 'Cancelar' });
   const eliminar = edicion ? el('button', { type: 'button', class: 'btn btn--peligro btn--bloque', text: 'Eliminar' }) : null;
   const aviso = el('p', { class: 'formulario__aviso', role: 'alert', hidden: true });
 
@@ -209,6 +215,9 @@ export function crearPantallaFormulario({
   almacen: almacenInyectado = {},
   navegacion = { volver, reemplazar },
   confirmar = confirmarDialogo,
+  // Aviso breve tras guardar o eliminar y retraso del indicador de carga (ui-feedback).
+  avisar = mostrarAviso,
+  retrasoCarga,
 } = {}) {
   // Las pruebas sustituyen solo las operaciones que les interesan.
   const almacen = {
@@ -236,7 +245,7 @@ export function crearPantallaFormulario({
     let valores = { ...VALORES_ALTA };
     if (edicion) {
       try {
-        producto = await almacen.obtenerProducto(id);
+        producto = await conIndicadorDeCarga(elemento, almacen.obtenerProducto(id), { retraso: retrasoCarga });
       } catch (error) {
         console.error('No se pudo cargar el producto:', error);
         pintarEstado('No se pudo cargar el producto',
@@ -315,6 +324,7 @@ export function crearPantallaFormulario({
       try {
         await almacen.eliminarProducto(id);
         descartarBorrador(clave);
+        avisar('Producto eliminado');
         navegacion.reemplazar('/listado');
       } catch (error) {
         console.error('No se pudo eliminar el producto:', error);
@@ -354,6 +364,7 @@ export function crearPantallaFormulario({
           await almacen.crearProducto(datos);
         }
         descartarBorrador(clave);
+        avisar('Producto guardado');
         if (edicion) navegacion.reemplazar('/listado');
         else navegacion.volver();
       } catch (error) {

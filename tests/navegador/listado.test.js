@@ -602,7 +602,7 @@ prueba('Aviso: Solo próximos', async () => {
   await crearConDias(0, 1, 2, 9);
   const raiz = await montarConAviso();
   verdadero(avisoVisible(raiz), 'falta el aviso');
-  igual(textoAviso(raiz), '3 productos caducan hoy o en los próximos 2 días');
+  igual(textoAviso(raiz), '3 productos a punto de caducar');
   const pestanas = raiz.querySelector('[role="tablist"]');
   verdadero(pestanas.compareDocumentPosition(avisoDe(raiz)) & Node.DOCUMENT_POSITION_FOLLOWING, 'el aviso va después de las pestañas');
   verdadero(avisoDe(raiz).compareDocumentPosition(raiz.querySelector('.lista-productos')) & Node.DOCUMENT_POSITION_FOLLOWING, 'y antes de la lista');
@@ -612,7 +612,7 @@ prueba('Aviso: Caducados y próximos', async () => {
   modAvisos.reiniciarAvisos();
   await crearConDias(-2, -1, 0, 5);
   const raiz = await montarConAviso();
-  igual(textoAviso(raiz), '2 productos han caducado y 1 caduca hoy o en los próximos 2 días');
+  igual(textoAviso(raiz), '2 productos caducados y 1 a punto de caducar');
 });
 
 prueba('Aviso: Nada urgente', async () => {
@@ -684,7 +684,7 @@ prueba('Aviso: Al día siguiente', async () => {
   fecha = new Date(2026, 10, 18, 8, 0);
   simularVuelta();
   verdadero(avisoVisible(raiz), 'al día siguiente sí');
-  igual(textoAviso(raiz), '1 producto caduca hoy o en los próximos 2 días');
+  igual(textoAviso(raiz), '1 producto a punto de caducar');
 });
 
 prueba('Aviso oculto en el estado de error', async () => {
@@ -711,4 +711,116 @@ prueba('el Listado con aviso no deja texto suelto', async () => {
   await crearConDias(-1);
   const raiz = await montarConAviso();
   verdadero(!/\b(false|null|undefined)\b/.test(raiz.textContent), 'texto false/null/undefined');
+});
+
+// ---------- Aviso de cambios sin sincronizar en el Listado (pulido-final) ----------
+
+function sincronizadorFalsoListado(inicial = {}) {
+  const estado = { enLinea: true, fase: 'inactivo', pendiente: true, tokenVigente: false, ultima: null, error: null, texto: 'Toca para sincronizar', ...inicial };
+  return {
+    peticiones: [],
+    estado: () => estado,
+    suscribir: () => () => {},
+    sincronizar(opciones) { this.peticiones.push(opciones); return Promise.resolve(); },
+  };
+}
+
+prueba('el aviso de sincronización va antes del de caducidad', async () => {
+  modAvisos.reiniciarAvisos();
+  await crearConDias(-1);
+  const raiz = await montarConAviso({ sincronizador: sincronizadorFalsoListado() });
+  const avisoSync = raiz.querySelector('.aviso-sincronizacion');
+  verdadero(avisoSync && !avisoSync.hidden, 'falta el aviso de sincronización');
+  verdadero(avisoSync.compareDocumentPosition(avisoDe(raiz)) & Node.DOCUMENT_POSITION_FOLLOWING, 'va antes del de caducidad');
+});
+
+prueba('sin sincronizador no hay aviso de sincronización', async () => {
+  const raiz = await montar();
+  igual(raiz.querySelector('.aviso-sincronizacion'), null);
+});
+
+// ---------- Pulido: aviso corto, carga y aviso breve al eliminar (pulido-final) ----------
+
+// Zona con el ancho útil del móvil: 390 px menos el margen lateral de la app (16 px).
+const zonaMovil = document.createElement('div');
+zonaMovil.style.cssText = 'position:absolute; left:-10000px; top:0; width:390px; padding:0 16px; box-sizing:border-box;';
+document.body.append(zonaMovil);
+
+// Número de líneas que ocupa el texto de un elemento (por las cajas de cada línea).
+function lineasDe(elemento) {
+  const rango = document.createRange();
+  rango.selectNodeContents(elemento);
+  return new Set([...rango.getClientRects()].map((caja) => Math.round(caja.top))).size;
+}
+
+function productoDePrueba(i, dias) {
+  return { id: `p${i}`, nombre: `Producto ${i}`, fechaCaducidad: dentroDe(dias), cantidad: 1, unidad: 'ud', categoria: 'Nevera', foto: { tipo: 'ninguna', valor: null }, eliminado: false };
+}
+
+prueba('Cabe en dos líneas', async () => {
+  await cargarEstilosApp();
+  modAvisos.reiniciarAvisos();
+  const lista = [
+    ...Array.from({ length: 12 }, (_, i) => productoDePrueba(i, -1)),
+    ...Array.from({ length: 10 }, (_, i) => productoDePrueba(12 + i, 1)),
+  ];
+  const pantalla = listado.crearPantallaListado({ hoy: () => HOY_FIJO, listar: async () => lista, avisos: avisosDePrueba() });
+  zonaMovil.replaceChildren(pantalla.elemento);
+  try {
+    await pantalla.cargado;
+    const textoAvisoMovil = pantalla.elemento.querySelector('.aviso-caducidad__texto');
+    igual(textoAvisoMovil.textContent, '12 productos caducados y 10 a punto de caducar');
+    const lineas = lineasDe(textoAvisoMovil);
+    verdadero(lineas <= 2, `ocupa ${lineas} líneas`);
+  } finally {
+    zonaMovil.replaceChildren();
+  }
+});
+
+prueba('Lectura lenta en el Listado', async () => {
+  let terminar;
+  const pendiente = new Promise((r) => { terminar = r; });
+  const pantalla = listado.crearPantallaListado({ hoy: () => HOY_FIJO, listar: () => pendiente, retrasoCarga: 10 });
+  zona.replaceChildren(pantalla.elemento);
+  await new Promise((r) => setTimeout(r, 40));
+  verdadero(pantalla.elemento.textContent.includes('Cargando…'), 'falta "Cargando…"');
+  terminar([]);
+  await pantalla.cargado;
+  verdadero(!pantalla.elemento.textContent.includes('Cargando…'), 'se quita al terminar');
+  verdadero(pantalla.elemento.querySelector('.listado__vacio'), 'pinta el resultado');
+});
+
+prueba('Lectura fallida en el Listado', async () => {
+  let fallar;
+  const pendiente = new Promise((_, rej) => { fallar = rej; });
+  const pantalla = listado.crearPantallaListado({ hoy: () => HOY_FIJO, listar: () => pendiente, retrasoCarga: 10 });
+  zona.replaceChildren(pantalla.elemento);
+  await new Promise((r) => setTimeout(r, 40));
+  fallar(new storage.ErrorAlmacenamiento('fallo'));
+  await pantalla.cargado;
+  verdadero(!pantalla.elemento.textContent.includes('Cargando…'), 'se quita al fallar');
+  verdadero(pantalla.elemento.querySelector('.listado__error button'), 'muestra Reintentar');
+});
+
+prueba('Eliminar desde el Listado', async () => {
+  await storage.crearProducto({ nombre: 'Leche', fechaCaducidad: dentroDe(3) });
+  const avisos = [];
+  const raiz = await montarConGestos({ avisar: (texto) => avisos.push(texto) });
+  const tarjeta = tarjetaDe(raiz, 'Leche');
+  deslizarTarjeta(tarjeta, -150);
+  botonEliminar(tarjeta).click();
+  await esperarA(() => !tarjetaDe(raiz, 'Leche'));
+  igualProfundo(avisos, ['Producto eliminado']);
+});
+
+prueba('Eliminar desde el Listado cancelado no avisa', async () => {
+  await storage.crearProducto({ nombre: 'Leche', fechaCaducidad: dentroDe(3) });
+  const avisos = [];
+  const raiz = await montarConGestos({ avisar: (texto) => avisos.push(texto) });
+  respuestaGesto = false;
+  const tarjeta = tarjetaDe(raiz, 'Leche');
+  deslizarTarjeta(tarjeta, -150);
+  botonEliminar(tarjeta).click();
+  await esperar(50);
+  igualProfundo(avisos, []);
 });

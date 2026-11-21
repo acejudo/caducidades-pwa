@@ -230,28 +230,29 @@ export function filtrarPorEstado(lista, filtro, hoy = new Date()) {
 // ---------- Productos urgentes (expiry-alerts) ----------
 
 const productosTexto = (n) => `${n} ${n === 1 ? 'producto' : 'productos'}`;
-const caducan = (n) => (n === 1 ? 'caduca' : 'caducan');
-const hanCaducado = (n) => (n === 1 ? 'ha caducado' : 'han caducado');
+const caducados = (n) => (n === 1 ? 'caducado' : 'caducados');
+const A_PUNTO = 'a punto de caducar';
 
 // Resumen de los productos urgentes (nivel rojo: caducados o que caducan en
 // URGENCIA.rojoMaxDias días o menos) para el aviso del Listado, o null si no hay ninguno.
 // { caducados, proximos, texto, filtro }: `filtro` es el de destino al tocar el aviso.
 export function resumirUrgentes(lista, hoy = new Date()) {
-  let caducados = 0;
+  let vencidos = 0;
   let proximos = 0;
   for (const producto of lista) {
     if (producto.eliminado) continue;
     const dias = diasRestantes(producto.fechaCaducidad, hoy);
-    if (dias < 0) caducados += 1;
+    if (dias < 0) vencidos += 1;
     else if (dias <= URGENCIA.rojoMaxDias) proximos += 1;
   }
-  if (caducados === 0 && proximos === 0) return null;
+  if (vencidos === 0 && proximos === 0) return null;
 
-  const plazo = `hoy o en los próximos ${URGENCIA.rojoMaxDias} días`;
+  // Textos cortos para que el aviso quepa en dos líneas (pulido-final, design.md §2). "A
+  // punto de caducar" son los próximos URGENCIA.rojoMaxDias días (lo explica Ajustes).
   let texto;
-  if (caducados === 0) texto = `${productosTexto(proximos)} ${caducan(proximos)} ${plazo}`;
-  else if (proximos === 0) texto = `${productosTexto(caducados)} ${hanCaducado(caducados)}`;
-  else texto = `${productosTexto(caducados)} ${hanCaducado(caducados)} y ${proximos} ${caducan(proximos)} ${plazo}`;
+  if (vencidos === 0) texto = `${productosTexto(proximos)} ${A_PUNTO}`;
+  else if (proximos === 0) texto = `${productosTexto(vencidos)} ${caducados(vencidos)}`;
+  else texto = `${productosTexto(vencidos)} ${caducados(vencidos)} y ${proximos} ${A_PUNTO}`;
 
-  return { caducados, proximos, texto, filtro: caducados > 0 ? 'caducadas' : 'pronto' };
+  return { caducados: vencidos, proximos, texto, filtro: vencidos > 0 ? 'caducadas' : 'pronto' };
 }

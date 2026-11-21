@@ -21,11 +21,15 @@ jobs:
       name: github-pages
       url: ${{ steps.despliegue.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      # Versiones que se ejecutan con Node 24 (GitHub retira Node 20). Fijarlas por SHA va
+      # en endurecimiento-seguridad.
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
+          # Sin dependencias: no hay nada que cachear.
+          package-manager-cache: false
 
       - name: Generar src/js/config.local.js desde los Secrets
         env:
@@ -39,11 +43,11 @@ jobs:
           sed -i "s/^const CACHE_VERSION = '.*';/const CACHE_VERSION = '${VERSION}';/" src/sw.js
           grep -q "CACHE_VERSION = '${VERSION}'" src/sw.js
 
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: src
 
       - id: despliegue
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

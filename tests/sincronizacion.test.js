@@ -328,3 +328,34 @@ describe('Plan de fotos', () => {
     assert.deepEqual(p.subir, [F1, F3]);
   });
 });
+
+// ---------- Aviso de cambios sin sincronizar (pulido-final) ----------
+
+describe('Aviso de cambios sin sincronizar', () => {
+  const base = { enLinea: true, fase: 'inactivo', pendiente: true, tokenVigente: false };
+  const aviso = (cambios = {}) => sincronizacion.avisoPendiente({ ...base, ...cambios });
+
+  test('Abrir la app con cambios pendientes', () => {
+    assert.equal(aviso(), true);
+  });
+
+  test('Sin cambios pendientes', () => {
+    assert.equal(aviso({ pendiente: false }), false);
+  });
+
+  test('Sin conexión', () => {
+    assert.equal(aviso({ enLinea: false }), false);
+  });
+
+  test('con token vigente sincroniza sola: sin aviso', () => {
+    assert.equal(aviso({ tokenVigente: true }), false);
+  });
+
+  test('oculto mientras sincroniza', () => {
+    assert.equal(aviso({ fase: 'sincronizando' }), false);
+  });
+
+  test('visible tras un error, para reintentar', () => {
+    assert.equal(aviso({ fase: 'error' }), true);
+  });
+});

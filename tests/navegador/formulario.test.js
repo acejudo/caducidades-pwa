@@ -688,3 +688,139 @@ prueba('Cancelar tras cambiar a una foto real', async () => {
   await esperarA(() => confirmaciones.length > 0);
   igual(confirmaciones[0].titulo, '¿Descartar los cambios?');
 });
+
+// ---------- Alta en una sola pantalla y avisos (pulido-final) ----------
+
+// Hoja de estilos de la app, para medir (se carga una sola vez).
+async function cargarEstilosFormulario() {
+  if (document.querySelector('link[data-estilos-app]')) return;
+  const enlace = document.createElement('link');
+  enlace.rel = 'stylesheet';
+  enlace.href = '../../src/css/styles.css';
+  enlace.dataset.estilosApp = '';
+  const cargado = new Promise((resolver, rechazar) => { enlace.onload = resolver; enlace.onerror = rechazar; });
+  document.head.append(enlace);
+  await cargado;
+}
+
+// Zona con el ancho útil del móvil: 390 px menos el margen lateral de la app (16 px).
+const zonaMovilFormulario = document.createElement('div');
+zonaMovilFormulario.style.cssText = 'position:absolute; left:-10000px; top:0; width:390px; padding:0 16px; box-sizing:border-box;';
+document.body.append(zonaMovilFormulario);
+zonaMovilFormulario.addEventListener('submit', (evento) => evento.preventDefault());
+zonaMovilFormulario.addEventListener('click', (evento) => {
+  if (evento.target.closest('a')) evento.preventDefault();
+});
+
+// Alto disponible para el formulario en 390×844: pantalla menos la cabecera (56 px) y los
+// márgenes superior (16 px) e inferior (32 px) del contenido.
+const ALTO_DISPONIBLE = 844 - 56 - 16 - 32;
+
+async function montarEnMovil(opciones = {}) {
+  await cargarEstilosFormulario();
+  const pantalla = formulario.crearPantallaFormulario({
+    navegacion: { volver: () => navegaciones.push(['volver']), reemplazar: (path) => navegaciones.push(['reemplazar', path]) },
+    confirmar: async (datos) => { confirmaciones.push(datos); return respuestaConfirmar; },
+    ...opciones,
+  });
+  zonaMovilFormulario.replaceChildren(pantalla.elemento);
+  await pantalla.cargado;
+  return pantalla.elemento;
+}
+
+prueba('Alta sin scroll', async () => {
+  try {
+    const raiz = await montarEnMovil();
+    const alto = raiz.querySelector('form').getBoundingClientRect().height;
+    verdadero(alto <= ALTO_DISPONIBLE, `el formulario mide ${Math.round(alto)} px y caben ${ALTO_DISPONIBLE}`);
+    const zonaFotoMovil = raiz.querySelector('a.zona-foto');
+    verdadero(zonaFotoMovil.getBoundingClientRect().height <= 96, `la zona de foto mide ${Math.round(zonaFotoMovil.getBoundingClientRect().height)} px`);
+    igual(control(raiz, 'notas').getAttribute('rows'), '2');
+  } finally {
+    zonaMovilFormulario.replaceChildren();
+  }
+});
+
+prueba('Botones en una fila', async () => {
+  try {
+    const raiz = await montarEnMovil();
+    const cajaGuardar = boton(raiz, 'Guardar').getBoundingClientRect();
+    const cajaCancelar = boton(raiz, 'Cancelar').getBoundingClientRect();
+    verdadero(Math.abs(cajaGuardar.top - cajaCancelar.top) <= 1, 'en la misma fila');
+    verdadero(cajaGuardar.left > cajaCancelar.left, '"Guardar" a la derecha');
+    verdadero(cajaGuardar.height >= 44 && cajaCancelar.height >= 44, 'tamaño táctil mínimo');
+    igual(boton(raiz, 'Guardar').type, 'submit', 'Intro en un campo sigue guardando');
+  } finally {
+    zonaMovilFormulario.replaceChildren();
+  }
+});
+
+prueba('Eliminar al final de la edición', async () => {
+  const p = await storage.crearProducto({ ...COMPLETO });
+  const raiz = await montar({ id: p.id });
+  const eliminar = boton(raiz, 'Eliminar');
+  verdadero(eliminar, 'falta "Eliminar"');
+  verdadero(control(raiz, 'notas').compareDocumentPosition(eliminar) & Node.DOCUMENT_POSITION_FOLLOWING, 'después de Notas');
+  igual(eliminar.closest('.formulario__acciones'), null, 'fuera de la fila fija');
+});
+
+prueba('la zona de foto compacta con foto predeterminada', async () => {
+  borradores.guardarBorrador('nuevo', { foto: conFoto('yogur') });
+  try {
+    const raiz = await montarEnMovil();
+    const zonaFotoMovil = raiz.querySelector('a.zona-foto');
+    verdadero(zonaFotoMovil.getBoundingClientRect().height <= 96, 'compacta también con foto');
+    verdadero(zonaFotoMovil.textContent.includes('Yogur'), 'con el nombre');
+  } finally {
+    zonaMovilFormulario.replaceChildren();
+  }
+});
+
+prueba('Guardar un producto', async () => {
+  const avisos = [];
+  const raiz = await montar({ avisar: (texto) => avisos.push(texto) });
+  escribir(raiz, 'nombre', 'Yogur');
+  escribir(raiz, 'fechaCaducidad', dentroDe(5));
+  guardar(raiz).click();
+  await esperarA(() => navegaciones.length > 0);
+  igualProfundo(avisos, ['Producto guardado']);
+});
+
+prueba('Error al guardar', async () => {
+  const avisos = [];
+  const fallo = async () => { throw new storage.ErrorAlmacenamiento('sin espacio'); };
+  const raiz = await montar({ almacen: { crearProducto: fallo }, avisar: (texto) => avisos.push(texto) });
+  escribir(raiz, 'nombre', 'Queso');
+  escribir(raiz, 'fechaCaducidad', dentroDe(9));
+  guardar(raiz).click();
+  await esperarA(() => visible(raiz.querySelector('.formulario__aviso')));
+  igualProfundo(avisos, [], 'no se avisa de guardado');
+});
+
+prueba('Producto eliminado desde la edición', async () => {
+  const avisos = [];
+  const p = await storage.crearProducto({ ...COMPLETO });
+  const raiz = await montar({ id: p.id, avisar: (texto) => avisos.push(texto) });
+  respuestaConfirmar = true;
+  boton(raiz, 'Eliminar').click();
+  await esperarA(() => navegaciones.length > 0);
+  igualProfundo(avisos, ['Producto eliminado']);
+});
+
+prueba('Lectura lenta en Editar', async () => {
+  let terminar;
+  const pendiente = new Promise((r) => { terminar = r; });
+  zona.replaceChildren();
+  const pantalla = formulario.crearPantallaFormulario({
+    id: 'lento',
+    almacen: { obtenerProducto: () => pendiente },
+    retrasoCarga: 10,
+  });
+  zona.append(pantalla.elemento);
+  await new Promise((r) => setTimeout(r, 40));
+  verdadero(pantalla.elemento.textContent.includes('Cargando…'), 'falta "Cargando…"');
+  terminar(null);
+  await pantalla.cargado;
+  verdadero(!pantalla.elemento.textContent.includes('Cargando…'), 'se quita al terminar');
+  verdadero(pantalla.elemento.textContent.includes('Este producto no existe'), 'pinta el resultado');
+});

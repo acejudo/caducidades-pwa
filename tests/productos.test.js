@@ -390,32 +390,32 @@ describe('expiry-alerts: productos urgentes', () => {
 
   test('Solo próximos', () => {
     const r = resumir(conDias(0, 1, 2, 9));
-    assert.equal(r.texto, '3 productos caducan hoy o en los próximos 2 días');
+    assert.equal(r.texto, '3 productos a punto de caducar');
     assert.equal(r.filtro, 'pronto');
   });
 
   test('Solo próximos: singular', () => {
-    assert.equal(resumir(conDias(1)).texto, '1 producto caduca hoy o en los próximos 2 días');
+    assert.equal(resumir(conDias(1)).texto, '1 producto a punto de caducar');
   });
 
   test('Solo caducados', () => {
     const r = resumir(conDias(-1, 8));
-    assert.equal(r.texto, '1 producto ha caducado');
+    assert.equal(r.texto, '1 producto caducado');
     assert.equal(r.filtro, 'caducadas');
   });
 
   test('Solo caducados: plural', () => {
-    assert.equal(resumir(conDias(-1, -5)).texto, '2 productos han caducado');
+    assert.equal(resumir(conDias(-1, -5)).texto, '2 productos caducados');
   });
 
   test('Caducados y próximos', () => {
     const r = resumir(conDias(-2, -1, 0));
-    assert.equal(r.texto, '2 productos han caducado y 1 caduca hoy o en los próximos 2 días');
+    assert.equal(r.texto, '2 productos caducados y 1 a punto de caducar');
     assert.equal(r.filtro, 'caducadas');
   });
 
   test('Caducados y próximos: singular y plural', () => {
-    assert.equal(resumir(conDias(-1, 0, 2)).texto, '1 producto ha caducado y 2 caducan hoy o en los próximos 2 días');
+    assert.equal(resumir(conDias(-1, 0, 2)).texto, '1 producto caducado y 2 a punto de caducar');
   });
 
   test('Nada urgente', () => {
@@ -435,6 +435,6 @@ describe('expiry-alerts: productos urgentes', () => {
     const limite = constantes.URGENCIA.rojoMaxDias;
     const r = resumir(conDias(limite, limite + 1));
     assert.equal(r.proximos, 1);
-    assert.match(r.texto, new RegExp(`próximos ${limite} días$`));
+    assert.equal(r.texto, '1 producto a punto de caducar');
   });
 });

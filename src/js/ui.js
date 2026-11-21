@@ -195,7 +195,7 @@ function pantallaAjustes() {
 export const pantallas = {
   login: pantallaLogin,
 
-  listado: () => crearPantallaListado().elemento,
+  listado: () => crearPantallaListado({ sincronizador }).elemento,
 
   nuevo: () => crearPantallaFormulario().elemento,
 

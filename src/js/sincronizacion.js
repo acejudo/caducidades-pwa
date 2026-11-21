@@ -163,3 +163,10 @@ export function textoEstado({ enLinea, fase, pendiente, tokenVigente }) {
   if (pendiente) return 'Cambios pendientes';
   return 'Sincronizado';
 }
+
+// Si el Listado debe mostrar "Hay cambios sin sincronizar. Toca para sincronizar"
+// (sync-status): hay cambios pendientes, hay conexión, no hay token para sincronizar sola y
+// no se está sincronizando. Tras un error también, para poder reintentar con un toque.
+export function avisoPendiente({ enLinea, fase, pendiente, tokenVigente }) {
+  return Boolean(enLinea && pendiente && !tokenVigente && fase !== 'sincronizando');
+}

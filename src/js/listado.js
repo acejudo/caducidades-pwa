@@ -7,6 +7,8 @@ import {
   diasRestantes, nivelUrgencia, textoCaducidad, filtrarPorEstado, resumirUrgentes, FILTROS,
 } from './productos.js';
 import { avisosPorDefecto, avisoCerrado, cerrarAviso, crearAvisoCaducidad } from './avisos.js';
+import { crearAvisoSincronizacion } from './estado-sincronizacion.js';
+import { mostrarAviso, conIndicadorDeCarga } from './feedback.js';
 import { formatearFecha, formatearCantidad } from './formato.js';
 import { pintarFoto } from './fotos-reales.js';
 import { ICONOS } from './iconos.js';
@@ -83,6 +85,11 @@ export function crearPantallaListado({
   obtenerFoto = obtenerFotoGuardada,
   // Aviso de caducidad (expiry-alerts): preferencia y cierre en esta apertura.
   avisos = { activado: () => avisosPorDefecto.activado(), cerrado: avisoCerrado, cerrar: cerrarAviso },
+  // El sincronizador de la app (lo pasa ui.js): muestra el aviso de cambios sin sincronizar.
+  sincronizador = null,
+  // Aviso breve tras eliminar y retraso del indicador de carga (ui-feedback).
+  avisar = mostrarAviso,
+  retrasoCarga,
 } = {}) {
   const pestanas = FILTROS.map(({ clave, texto }) => el('button', {
     type: 'button',
@@ -105,6 +112,7 @@ export function crearPantallaListado({
   });
   const elemento = el('section', { class: 'listado' },
     barraFiltros,
+    sincronizador && crearAvisoSincronizacion({ sincronizador }).elemento,
     avisoCaducidad.elemento,
     aviso,
     contenido,
@@ -129,6 +137,7 @@ export function crearPantallaListado({
     }
     try {
       await eliminar(producto.id);
+      avisar('Producto eliminado');
       aviso.hidden = true;
       productos = productos.filter((p) => p.id !== producto.id);
       pintar();
@@ -188,7 +197,7 @@ export function crearPantallaListado({
     estado = 'cargando';
     contenido.setAttribute('aria-busy', 'true');
     try {
-      productos = await listar();
+      productos = await conIndicadorDeCarga(contenido, listar(), { retraso: retrasoCarga });
       estado = 'listo';
       pintar();
     } catch (error) {

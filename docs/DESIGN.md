@@ -121,7 +121,7 @@ Jerarquía clara:
 
 ### 5.2 Nuevo Producto / Editar Producto
 - Cabecera con flecha de volver + título
-- Zona grande de foto en la parte superior (toca para elegir)
+- Zona de foto compacta en la parte superior: una fila con la miniatura (o un icono de cámara) y "Toca para elegir foto"; con foto, su nombre o "Tu foto" y "Toca para cambiar"
 - Formulario vertical limpio:
   - Nombre
   - Fecha de compra (opcional)
@@ -129,8 +129,9 @@ Jerarquía clara:
   - Cantidad + unidad
   - Categoría
   - Notas (opcional)
-- Botones fijos abajo: “Guardar” (primario) y “Cancelar”
-- En modo edición aparece también “Eliminar”
+- Botones fijos abajo, en una misma fila: “Cancelar” (secundario, a la izquierda) y “Guardar” (primario, a la derecha)
+- En modo edición aparece también “Eliminar”, al final del formulario y fuera de la fila fija
+- En un móvil de 390×844 el alta cabe entera sin hacer scroll
 
 ### 5.3 Elegir Foto Predeterminada
 - Cabecera “Elegir foto”
@@ -138,10 +139,10 @@ Jerarquía clara:
 - Cuadrícula de 3 columnas con imágenes de productos
 - Cada imagen tiene el nombre debajo
 - La seleccionada se marca con borde azul y check
-- Botones inferiores: “Hacer foto” y “Sin foto”
+- Botones inferiores: “Hacer foto” y “Sin foto” en una fila, y “Elegir de la galería” debajo
 
 ### 5.4 Detalle del Producto
-- Foto grande en la parte superior
+- Foto grande en la parte superior. Una foto real se muestra a todo el ancho en 4:3 y, al tocarla, se ve entera a pantalla completa sobre fondo oscuro (botón “Cerrar”)
 - Nombre del producto
 - Fecha de caducidad destacada + badge de días restantes (con color de urgencia)
 - Fecha de compra (si existe)

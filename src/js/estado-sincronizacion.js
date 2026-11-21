@@ -4,6 +4,7 @@
 // falso (tests/navegador/estado-sincronizacion.test.js).
 
 import { formatearMomento } from './formato.js';
+import { avisoPendiente } from './sincronizacion.js';
 import { ICONOS } from './iconos.js';
 import { el, icono } from './utils.js';
 
@@ -61,7 +62,9 @@ export function crearSeccionSincronizacion({ sincronizador, ahora = () => new Da
 
   const elemento = el('section', { class: 'ajustes-sync' },
     el('h2', { class: 'ajustes-sync__titulo', text: 'Sincronización' }),
-    el('p', { class: 'ajustes-sync__servicio', text: 'Google Drive' }),
+    el('div', { class: 'ajustes-sync__drive' },
+      el('span', { class: 'ajustes-sync__nube' }, icono(ICONOS.nube)),
+      el('p', { class: 'ajustes-sync__servicio', text: 'Google Drive' })),
     textoEstado,
     ultima,
     error,
@@ -75,6 +78,26 @@ export function crearSeccionSincronizacion({ sincronizador, ahora = () => new Da
     error.textContent = estado.fase === 'error' ? estado.error ?? '' : '';
     error.hidden = !error.textContent;
     boton.disabled = !sePuedePedir(estado);
+  });
+
+  return { elemento };
+}
+
+// Aviso del Listado "Hay cambios sin sincronizar. Toca para sincronizar" (sync-status).
+// Solo se ve con cambios pendientes, conexión y sin token; al pulsarlo sincroniza a
+// petición, el único camino que puede abrir la ventana de Google.
+export function crearAvisoSincronizacion({ sincronizador }) {
+  const elemento = el('button', {
+    type: 'button',
+    class: 'aviso-sincronizacion',
+    hidden: true,
+    onClick: () => sincronizador.sincronizar({ aPeticion: true }),
+  },
+  icono(ICONOS.sincronizar),
+  el('span', { text: 'Hay cambios sin sincronizar. Toca para sincronizar' }));
+
+  seguirEstado(sincronizador, elemento, (estado) => {
+    elemento.hidden = !avisoPendiente(estado);
   });
 
   return { elemento };
