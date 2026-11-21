@@ -1576,12 +1576,35 @@ button.detalle__foto:focus-visible {
 
 .visor-foto__imagen {
   max-width: 100%;
-  max-height: calc(100% - 64px);
+  max-height: 100%;
   object-fit: contain;
 }
 
+/* ✕ en la esquina superior derecha, sobre la foto: círculo oscuro semitransparente. */
 .visor-foto__cerrar {
-  min-width: 140px;
+  position: absolute;
+  top: calc(var(--espacio-3) + env(safe-area-inset-top));
+  right: calc(var(--espacio-3) + env(safe-area-inset-right));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: var(--radio-completo);
+  background: rgb(255 255 255 / 0.18);
+  color: #FFFFFF;
+  cursor: pointer;
+}
+
+.visor-foto__cerrar svg {
+  width: 26px;
+  height: 26px;
+}
+
+.visor-foto__cerrar:focus-visible {
+  outline: 2px solid #FFFFFF;
+  outline-offset: 2px;
 }
 
 /* ---------- Estados al pasar el ratón (solo con puntero) y al pulsar ---------- */

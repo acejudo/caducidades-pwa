@@ -26,7 +26,8 @@ async function abrirVisor(nombre, leerFoto) {
   const url = URL.createObjectURL(blob);
   const dialogo = el('dialog', { class: 'visor-foto', 'aria-label': 'Foto del producto' },
     el('img', { src: url, alt: 'Foto del producto', class: 'visor-foto__imagen' }),
-    el('button', { type: 'button', class: 'btn btn--secundario visor-foto__cerrar', text: 'Cerrar', onClick: () => dialogo.close() }));
+    el('button', { type: 'button', class: 'visor-foto__cerrar', 'aria-label': 'Cerrar', onClick: () => dialogo.close() },
+      icono(ICONOS.cerrar)));
   // Un clic en el propio <dialog> (no en la imagen ni en el botón) es un clic en el fondo.
   dialogo.addEventListener('click', (evento) => {
     if (evento.target === dialogo) dialogo.close();

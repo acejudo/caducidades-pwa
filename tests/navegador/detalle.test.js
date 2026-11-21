@@ -318,8 +318,11 @@ prueba('Abrir y cerrar la foto', async () => {
     await esperarHasta(() => visorAbierto()?.open);
     const visor = visorAbierto();
     verdadero(visor.querySelector('img')?.src.startsWith('blob:'), 'el visor muestra la foto');
-    const cerrar = [...visor.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Cerrar');
-    verdadero(cerrar, 'falta "Cerrar"');
+    // Botón ✕ en la esquina: icono, sin texto visible, y nombre accesible "Cerrar".
+    const cerrar = visor.querySelector('button[aria-label="Cerrar"]');
+    verdadero(cerrar, 'falta el botón "Cerrar"');
+    verdadero(cerrar.querySelector('svg'), 'el botón lleva el icono ✕');
+    igual(cerrar.textContent.trim(), '', 'sin texto visible');
     cerrar.click();
     await esperarHasta(() => !visorAbierto());
   } finally {

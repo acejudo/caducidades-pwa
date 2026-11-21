@@ -10,10 +10,10 @@ En el Detalle, una foto real SHALL mostrarse a todo el ancho en proporción 4:3,
 - **THEN** la foto ocupa un recuadro 4:3 a todo el ancho, sin deformarse
 
 ### Requirement: Ver la foto a pantalla completa
-Al tocar una foto real en el Detalle, la app SHALL mostrarla entera, sin recortar, sobre un fondo oscuro que ocupa toda la pantalla, con un botón "Cerrar". También MUST cerrarse con Escape o tocando fuera de la foto. Las fotos predeterminadas y el icono genérico MUST NOT abrir esta vista.
+Al tocar una foto real en el Detalle, la app SHALL mostrarla entera, sin recortar, sobre un fondo oscuro que ocupa toda la pantalla, con un botón ✕ en la esquina superior derecha cuyo nombre accesible es "Cerrar". También MUST cerrarse con Escape o tocando fuera de la foto. Las fotos predeterminadas y el icono genérico MUST NOT abrir esta vista.
 
 #### Scenario: Abrir y cerrar la foto
-- **WHEN** el usuario toca la foto real en el Detalle y después pulsa "Cerrar"
+- **WHEN** el usuario toca la foto real en el Detalle y después pulsa la ✕ ("Cerrar")
 - **THEN** ve la foto entera a pantalla completa y, al cerrar, vuelve al Detalle tal como estaba
 
 #### Scenario: Foto predeterminada

@@ -142,7 +142,7 @@ Jerarquía clara:
 - Botones inferiores: “Hacer foto” y “Sin foto” en una fila, y “Elegir de la galería” debajo
 
 ### 5.4 Detalle del Producto
-- Foto grande en la parte superior. Una foto real se muestra a todo el ancho en 4:3 y, al tocarla, se ve entera a pantalla completa sobre fondo oscuro (botón “Cerrar”)
+- Foto grande en la parte superior. Una foto real se muestra a todo el ancho en 4:3 y, al tocarla, se ve entera a pantalla completa sobre fondo oscuro, con una ✕ para cerrar en la esquina superior derecha
 - Nombre del producto
 - Fecha de caducidad destacada + badge de días restantes (con color de urgencia)
 - Fecha de compra (si existe)

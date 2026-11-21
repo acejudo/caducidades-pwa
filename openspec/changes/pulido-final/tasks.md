@@ -50,7 +50,7 @@
 ## 7. Revisión visual y fotos predeterminadas
 
 - [x] 7.1 Pestañas de color, iconos y etiqueta de categoría en el Detalle, bloque de Drive con icono de nube en Ajustes, y estados al pasar el ratón y al pulsar (design §6). Iconos nuevos en `iconos.js`. Verificar con `npm run test:navegador` en verde (las pruebas de pantalla siguen pasando y no queda texto suelto) y con capturas de Listado, Detalle y Ajustes comparadas con `docs/design/` (en el scratchpad).
-- [ ] 7.2 Rehacer `platano.svg` y retocar `yogur.svg`, `leche.svg`, `mantequilla.svg` y `embutido.svg` (design §7). Verificar con una captura de Elegir foto y otra del Listado (48 px) en el scratchpad, y pasarle las capturas al usuario para que dé el visto bueno.
+- [x] 7.2 Rehacer `platano.svg` y retocar `yogur.svg`, `leche.svg`, `mantequilla.svg` y `embutido.svg` (design §7). Verificar con una captura de Elegir foto y otra del Listado (48 px) en el scratchpad, y pasarle las capturas al usuario para que dé el visto bueno.
 
 ## 8. Cierre de calidad
 
@@ -62,7 +62,7 @@
 
 - [x] 9.1 Ejecutar `npm test` y `npm run test:navegador` y verificar que todo está en verde.
 - [x] 9.2 Recorrido con `captura-app.mjs`: alta sin scroll, aviso breve "Producto guardado", aviso de caducidad corto, Detalle con visor y Ajustes. Sin errores en la consola. Capturas en el scratchpad.
-- [ ] 9.3 Manual en el móvil (tras desplegar): alta sin scroll, aviso breve al guardar y al eliminar, foto real en el Detalle y a pantalla completa, aviso "Hay cambios sin sincronizar" al día siguiente con un cambio pendiente (y que solo abre Google al tocarlo), y que las pestañas de color, los iconos y el plátano nuevo se ven bien.
+- [x] 9.3 Manual en el móvil (tras desplegar): alta sin scroll, aviso breve al guardar y al eliminar, foto real en el Detalle y a pantalla completa, aviso "Hay cambios sin sincronizar" al día siguiente con un cambio pendiente (y que solo abre Google al tocarlo), y que las pestañas de color, los iconos y el plátano nuevo se ven bien.
 - [ ] 9.4 Manual: instalar la app como PWA en Android (Chrome, "Instalar app") y en iOS (Safari, "Añadir a pantalla de inicio"), comprobar el icono y que abre sin barra del navegador, y anotar el resultado. Si el icono se ve recortado o borroso, corregirlo.
 - [ ] 9.5 Comprobar uno a uno los criterios de aceptación de SPEC.md §10 (con las pruebas y lo verificado en 9.3 y 9.4) y marcarlos `[x]` en SPEC.md. Si alguno falla, anotarlo y avisar al usuario antes de seguir.
 
