@@ -55,7 +55,7 @@
 ## 8. Cierre de calidad
 
 - [x] 8.1 Limpieza: comentarios obsoletos, CSS sin uso (revisando la lista antes de borrar) y "(pendiente)" del README (design §8). Verificar con `npm test` y `npm run test:navegador` en verde y con capturas sin cambios visuales no buscados.
-- [ ] 8.2 Actualizar `.github/workflows/pages.yml` a las versiones de *actions* con Node 24 y `node-version: 24` (design §8, tabla del *workflow*), tras leer las notas de cada versión mayor. Verificar que el YAML sigue siendo válido (`node -e` con un parseo simple o revisión de la indentación) y, tras el push del usuario, que el *workflow* termina en verde **sin** el aviso "Node.js 20 is deprecated" y la app publicada carga (prueba manual en 9.3).
+- [x] 8.2 Actualizar `.github/workflows/pages.yml` a las versiones de *actions* con Node 24 y `node-version: 24` (design §8, tabla del *workflow*), tras leer las notas de cada versión mayor. Verificar que el YAML sigue siendo válido (`node -e` con un parseo simple o revisión de la indentación) y, tras el push del usuario, que el *workflow* termina en verde **sin** el aviso "Node.js 20 is deprecated" y la app publicada carga (prueba manual en 9.3).
 - [x] 8.3 Documentación: DESIGN.md §5.2 ("Cancelar" y "Guardar" en la misma fila; zona de foto compacta) y §5.4 (visor de foto). Verificar releyendo que coinciden con las specs del cambio.
 
 ## 9. Verificación final
