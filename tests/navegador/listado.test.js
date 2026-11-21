@@ -577,3 +577,138 @@ prueba('Foto real todavía no disponible', async () => {
     verdadero(foto.querySelector('svg'), 'icono genérico');
   });
 });
+
+// ---------- Aviso de caducidad (expiry-alerts) ----------
+
+const modAvisos = await import('../../src/js/avisos.js').catch(() => ({}));
+
+// Avisos activados (o no) con el cierre real del módulo, que dura hasta reiniciarAvisos
+// (una apertura nueva de la app).
+function avisosDePrueba({ activado = true } = {}) {
+  return { activado: () => activado, cerrado: modAvisos.avisoCerrado, cerrar: modAvisos.cerrarAviso };
+}
+
+async function montarConAviso(opciones = {}) {
+  return montar({ avisos: avisosDePrueba(), ...opciones });
+}
+
+const avisoDe = (raiz) => raiz.querySelector('.aviso-caducidad');
+const avisoVisible = (raiz) => Boolean(avisoDe(raiz) && !avisoDe(raiz).hidden);
+const textoAviso = (raiz) => avisoDe(raiz)?.querySelector('.aviso-caducidad__texto')?.textContent.trim() ?? null;
+const filtroActivo = (raiz) => raiz.querySelector('[role="tab"][aria-selected="true"]')?.textContent.trim();
+
+prueba('Aviso: Solo próximos', async () => {
+  modAvisos.reiniciarAvisos();
+  await crearConDias(0, 1, 2, 9);
+  const raiz = await montarConAviso();
+  verdadero(avisoVisible(raiz), 'falta el aviso');
+  igual(textoAviso(raiz), '3 productos caducan hoy o en los próximos 2 días');
+  const pestanas = raiz.querySelector('[role="tablist"]');
+  verdadero(pestanas.compareDocumentPosition(avisoDe(raiz)) & Node.DOCUMENT_POSITION_FOLLOWING, 'el aviso va después de las pestañas');
+  verdadero(avisoDe(raiz).compareDocumentPosition(raiz.querySelector('.lista-productos')) & Node.DOCUMENT_POSITION_FOLLOWING, 'y antes de la lista');
+});
+
+prueba('Aviso: Caducados y próximos', async () => {
+  modAvisos.reiniciarAvisos();
+  await crearConDias(-2, -1, 0, 5);
+  const raiz = await montarConAviso();
+  igual(textoAviso(raiz), '2 productos han caducado y 1 caduca hoy o en los próximos 2 días');
+});
+
+prueba('Aviso: Nada urgente', async () => {
+  modAvisos.reiniciarAvisos();
+  await crearConDias(3, 10);
+  const raiz = await montarConAviso();
+  igual(avisoVisible(raiz), false);
+});
+
+prueba('Aviso: Listado vacío', async () => {
+  modAvisos.reiniciarAvisos();
+  const raiz = await montarConAviso();
+  igual(avisoVisible(raiz), false);
+  verdadero(raiz.querySelector('.listado__vacio'), 'se ve el estado vacío');
+});
+
+prueba('Tocar el aviso: Con caducados', async () => {
+  modAvisos.reiniciarAvisos();
+  await crearConDias(-1, 0, 1, 8);
+  const raiz = await montarConAviso();
+  avisoDe(raiz).querySelector('.aviso-caducidad__ver').click();
+  igual(filtroActivo(raiz), 'Caducadas');
+  igualProfundo(nombres(raiz), ['En -1']);
+});
+
+prueba('Tocar el aviso: Solo próximos', async () => {
+  modAvisos.reiniciarAvisos();
+  await crearConDias(1, 8);
+  const raiz = await montarConAviso();
+  avisoDe(raiz).querySelector('.aviso-caducidad__ver').click();
+  igual(filtroActivo(raiz), 'Pronto');
+});
+
+prueba('Cerrar y volver al Listado', async () => {
+  modAvisos.reiniciarAvisos();
+  await crearConDias(-1);
+  let raiz = await montarConAviso();
+  avisoDe(raiz).querySelector('button[aria-label="Cerrar aviso"]').click();
+  igual(avisoVisible(raiz), false, 'se cierra');
+  raiz = await montarConAviso(); // vuelve al Listado desde otra pantalla
+  igual(avisoVisible(raiz), false, 'sigue cerrado');
+  simularVuelta();
+  igual(avisoVisible(raiz), false, 'tampoco vuelve al recalcular');
+});
+
+prueba('Volver a abrir la app', async () => {
+  modAvisos.reiniciarAvisos();
+  await crearConDias(-1);
+  let raiz = await montarConAviso();
+  avisoDe(raiz).querySelector('button[aria-label="Cerrar aviso"]').click();
+  modAvisos.reiniciarAvisos(); // la app se cierra y se vuelve a abrir
+  raiz = await montarConAviso();
+  verdadero(avisoVisible(raiz), 'el aviso vuelve');
+});
+
+prueba('Desactivar los avisos', async () => {
+  modAvisos.reiniciarAvisos();
+  await crearConDias(-1, 0);
+  const raiz = await montar({ avisos: avisosDePrueba({ activado: false }) });
+  igual(avisoVisible(raiz), false);
+});
+
+prueba('Aviso: Al día siguiente', async () => {
+  modAvisos.reiniciarAvisos();
+  await crearConDias(3);
+  let fecha = HOY_FIJO;
+  const raiz = await montarConAviso({ hoy: () => fecha });
+  igual(avisoVisible(raiz), false, 'a 3 días no es urgente');
+  fecha = new Date(2026, 10, 18, 8, 0);
+  simularVuelta();
+  verdadero(avisoVisible(raiz), 'al día siguiente sí');
+  igual(textoAviso(raiz), '1 producto caduca hoy o en los próximos 2 días');
+});
+
+prueba('Aviso oculto en el estado de error', async () => {
+  modAvisos.reiniciarAvisos();
+  const raiz = await montarConAviso({ listar: async () => { throw new storage.ErrorAlmacenamiento('fallo'); } });
+  igual(avisoVisible(raiz), false);
+});
+
+prueba('Eliminar el último urgente', async () => {
+  modAvisos.reiniciarAvisos();
+  await storage.crearProducto({ nombre: 'Leche', fechaCaducidad: dentroDe(1) });
+  await storage.crearProducto({ nombre: 'Arroz', fechaCaducidad: dentroDe(30) });
+  const raiz = await montarConGestos({ avisos: avisosDePrueba() });
+  verdadero(avisoVisible(raiz), 'el aviso cuenta Leche');
+  const tarjeta = tarjetaDe(raiz, 'Leche');
+  deslizarTarjeta(tarjeta, -150);
+  botonEliminar(tarjeta).click();
+  await esperarA(() => !tarjetaDe(raiz, 'Leche'));
+  igual(avisoVisible(raiz), false, 'el aviso desaparece');
+});
+
+prueba('el Listado con aviso no deja texto suelto', async () => {
+  modAvisos.reiniciarAvisos();
+  await crearConDias(-1);
+  const raiz = await montarConAviso();
+  verdadero(!/\b(false|null|undefined)\b/.test(raiz.textContent), 'texto false/null/undefined');
+});

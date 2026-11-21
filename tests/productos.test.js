@@ -370,3 +370,71 @@ describe('product-list: filtros por estado', () => {
     assert.ok(Object.isFrozen(FILTROS));
   });
 });
+
+// ---------- Productos urgentes (expiry-alerts) ----------
+
+describe('expiry-alerts: productos urgentes', () => {
+  const HOY = new Date(2026, 10, 17, 9, 30); // 17 nov 2026, hora local
+  const dentroDe = (dias) => {
+    const d = new Date(2026, 10, 17 + dias);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const conDias = (...dias) => dias.map((n, i) => ({ id: `p${i}`, nombre: `En ${n}`, fechaCaducidad: dentroDe(n), eliminado: false }));
+  const resumir = (lista) => productos.resumirUrgentes(lista, HOY);
+
+  test('Clasificación', () => {
+    const r = resumir(conDias(-3, -1, 0, 2, 3, 10));
+    assert.equal(r.caducados, 2);
+    assert.equal(r.proximos, 2);
+  });
+
+  test('Solo próximos', () => {
+    const r = resumir(conDias(0, 1, 2, 9));
+    assert.equal(r.texto, '3 productos caducan hoy o en los próximos 2 días');
+    assert.equal(r.filtro, 'pronto');
+  });
+
+  test('Solo próximos: singular', () => {
+    assert.equal(resumir(conDias(1)).texto, '1 producto caduca hoy o en los próximos 2 días');
+  });
+
+  test('Solo caducados', () => {
+    const r = resumir(conDias(-1, 8));
+    assert.equal(r.texto, '1 producto ha caducado');
+    assert.equal(r.filtro, 'caducadas');
+  });
+
+  test('Solo caducados: plural', () => {
+    assert.equal(resumir(conDias(-1, -5)).texto, '2 productos han caducado');
+  });
+
+  test('Caducados y próximos', () => {
+    const r = resumir(conDias(-2, -1, 0));
+    assert.equal(r.texto, '2 productos han caducado y 1 caduca hoy o en los próximos 2 días');
+    assert.equal(r.filtro, 'caducadas');
+  });
+
+  test('Caducados y próximos: singular y plural', () => {
+    assert.equal(resumir(conDias(-1, 0, 2)).texto, '1 producto ha caducado y 2 caducan hoy o en los próximos 2 días');
+  });
+
+  test('Nada urgente', () => {
+    assert.equal(resumir(conDias(3, 10)), null);
+    assert.equal(resumir([]), null);
+  });
+
+  test('los eliminados no cuentan', () => {
+    const lista = conDias(-1, 0);
+    lista[0].eliminado = true;
+    const r = resumir(lista);
+    assert.equal(r.caducados, 0);
+    assert.equal(r.proximos, 1);
+  });
+
+  test('el límite de urgente es el final del rojo', () => {
+    const limite = constantes.URGENCIA.rojoMaxDias;
+    const r = resumir(conDias(limite, limite + 1));
+    assert.equal(r.proximos, 1);
+    assert.match(r.texto, new RegExp(`próximos ${limite} días$`));
+  });
+});

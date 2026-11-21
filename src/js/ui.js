@@ -13,6 +13,7 @@ import {
 } from './auth.js';
 import { crearSincronizador } from './sincronizador.js';
 import { crearBotonSincronizacion, crearSeccionSincronizacion } from './estado-sincronizacion.js';
+import { crearSeccionAvisos, avisosPorDefecto } from './avisos.js';
 
 // ---------- Sincronización con Drive ----------
 
@@ -172,6 +173,7 @@ function pantallaAjustes() {
   const sesion = sesionActual();
   return el('section', { class: 'ajustes' },
     crearSeccionSincronizacion({ sincronizador }).elemento,
+    crearSeccionAvisos({ preferencia: avisosPorDefecto }).elemento,
     el('section', { class: 'cuenta' },
       el('h2', { class: 'cuenta__titulo', text: 'Cuenta' }),
       el('p', { class: 'cuenta__nombre', text: sesion?.nombre ?? '' }),

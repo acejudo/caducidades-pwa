@@ -170,7 +170,7 @@ Botones:
 - Estado de sincronización con Google Drive
 - Cuenta de Google conectada (email)
 - Botón “Sincronizar ahora”
-- Opción de notificaciones locales (recordatorios de caducidad)
+- Opción "Avisar de lo que caduca pronto" (activada por defecto, guardada en cada dispositivo): al abrir la app, el Listado muestra un aviso con los productos caducados o que caducan en los próximos 2 días, que lleva al filtro correspondiente y se puede cerrar hasta la siguiente apertura. Es un aviso **dentro de la app**: sin notificaciones del sistema ni permisos, porque una PWA sin servidor de *push* no puede avisar con la app cerrada.
 - Botón **Cerrar sesión**
 
 ---

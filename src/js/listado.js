@@ -3,7 +3,10 @@
 // probarse sin config.local.js (tests/navegador/listado.test.js).
 
 import { listarProductos, eliminarProducto, obtenerFoto as obtenerFotoGuardada } from './storage.js';
-import { diasRestantes, nivelUrgencia, textoCaducidad, filtrarPorEstado, FILTROS } from './productos.js';
+import {
+  diasRestantes, nivelUrgencia, textoCaducidad, filtrarPorEstado, resumirUrgentes, FILTROS,
+} from './productos.js';
+import { avisosPorDefecto, avisoCerrado, cerrarAviso, crearAvisoCaducidad } from './avisos.js';
 import { formatearFecha, formatearCantidad } from './formato.js';
 import { pintarFoto } from './fotos-reales.js';
 import { ICONOS } from './iconos.js';
@@ -78,6 +81,8 @@ export function crearPantallaListado({
   eliminar = eliminarProducto,
   confirmar = confirmarDialogo,
   obtenerFoto = obtenerFotoGuardada,
+  // Aviso de caducidad (expiry-alerts): preferencia y cierre en esta apertura.
+  avisos = { activado: () => avisosPorDefecto.activado(), cerrado: avisoCerrado, cerrar: cerrarAviso },
 } = {}) {
   const pestanas = FILTROS.map(({ clave, texto }) => el('button', {
     type: 'button',
@@ -91,8 +96,16 @@ export function crearPantallaListado({
   const barraFiltros = el('div', { class: 'pestanas', role: 'tablist', 'aria-label': 'Filtrar productos' }, pestanas);
   const contenido = el('div', { id: 'listado-panel', class: 'listado__contenido', role: 'tabpanel', 'aria-busy': 'true' });
   const aviso = el('p', { class: 'listado__aviso', role: 'alert', hidden: true });
+  const avisoCaducidad = crearAvisoCaducidad({
+    alElegirFiltro: (clave) => elegirFiltro(clave),
+    alCerrar: () => {
+      avisos.cerrar();
+      pintar();
+    },
+  });
   const elemento = el('section', { class: 'listado' },
     barraFiltros,
+    avisoCaducidad.elemento,
     aviso,
     contenido,
     el('a', { href: '#/producto/nuevo', class: 'fab', 'aria-label': 'Añadir producto' }, icono(ICONOS.mas)),
@@ -145,6 +158,8 @@ export function crearPantallaListado({
   function pintar() {
     const ahora = hoy();
     marcarPestanas();
+    // El aviso se calcula con los mismos productos y la misma fecha que la lista.
+    avisoCaducidad.actualizar(avisos.activado() && !avisos.cerrado() ? resumirUrgentes(productos, ahora) : null);
     vaciar(contenido);
     // Sin ningún producto no hay nada que filtrar: se ocultan las pestañas.
     barraFiltros.hidden = productos.length === 0;
@@ -160,6 +175,7 @@ export function crearPantallaListado({
 
   function pintarError() {
     barraFiltros.hidden = true;
+    avisoCaducidad.actualizar(null);
     vaciar(contenido);
     contenido.append(el('div', { class: 'listado__error', role: 'alert' },
       el('p', { class: 'listado__error-titulo', text: 'No se pudieron cargar los productos' }),

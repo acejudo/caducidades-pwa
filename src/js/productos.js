@@ -226,3 +226,32 @@ export function filtrarPorEstado(lista, filtro, hoy = new Date()) {
   const cumple = CUMPLE_FILTRO[filtro] ?? CUMPLE_FILTRO.todas;
   return lista.filter((producto) => cumple(diasRestantes(producto.fechaCaducidad, hoy)));
 }
+
+// ---------- Productos urgentes (expiry-alerts) ----------
+
+const productosTexto = (n) => `${n} ${n === 1 ? 'producto' : 'productos'}`;
+const caducan = (n) => (n === 1 ? 'caduca' : 'caducan');
+const hanCaducado = (n) => (n === 1 ? 'ha caducado' : 'han caducado');
+
+// Resumen de los productos urgentes (nivel rojo: caducados o que caducan en
+// URGENCIA.rojoMaxDias días o menos) para el aviso del Listado, o null si no hay ninguno.
+// { caducados, proximos, texto, filtro }: `filtro` es el de destino al tocar el aviso.
+export function resumirUrgentes(lista, hoy = new Date()) {
+  let caducados = 0;
+  let proximos = 0;
+  for (const producto of lista) {
+    if (producto.eliminado) continue;
+    const dias = diasRestantes(producto.fechaCaducidad, hoy);
+    if (dias < 0) caducados += 1;
+    else if (dias <= URGENCIA.rojoMaxDias) proximos += 1;
+  }
+  if (caducados === 0 && proximos === 0) return null;
+
+  const plazo = `hoy o en los próximos ${URGENCIA.rojoMaxDias} días`;
+  let texto;
+  if (caducados === 0) texto = `${productosTexto(proximos)} ${caducan(proximos)} ${plazo}`;
+  else if (proximos === 0) texto = `${productosTexto(caducados)} ${hanCaducado(caducados)}`;
+  else texto = `${productosTexto(caducados)} ${hanCaducado(caducados)} y ${proximos} ${caducan(proximos)} ${plazo}`;
+
+  return { caducados, proximos, texto, filtro: caducados > 0 ? 'caducadas' : 'pronto' };
+}

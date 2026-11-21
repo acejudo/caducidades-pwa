@@ -70,6 +70,7 @@ src/                    # la app (lo que se publica)
   js/storage.js         # almacenamiento local de productos y fotos reales en IndexedDB (sin conexión)
   js/drive.js           # cliente de Google Drive API (lista y fotos)
   js/fotos-reales.js    # compresión de las fotos de la cámara o la galería y pintado de la foto de un producto
+  js/avisos.js          # aviso de caducidad del Listado y su interruptor de Ajustes (preferencia por dispositivo)
   js/utils.js           # utilidades de DOM
   img/icons/            # icono de la app (icon.svg es el origen de los PNG)
   img/predeterminadas/  # fotos predeterminadas de productos
