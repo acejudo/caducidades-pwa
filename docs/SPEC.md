@@ -270,19 +270,19 @@ caducidades-pwa/
 
 ## 10. Criterios de Aceptación (Definition of Done)
 
-- [ ] Se muestra pantalla de Login obligatoria
-- [ ] Solo los emails autorizados pueden acceder
-- [ ] Emails no autorizados reciben “Acceso denegado”
-- [ ] Se puede añadir, editar y eliminar productos
-- [ ] El listado se ordena correctamente por fecha de caducidad
-- [ ] Los colores de urgencia se muestran bien
-- [ ] Se pueden elegir fotos predeterminadas
-- [ ] La fecha de compra es opcional
-- [ ] La app funciona sin conexión
-- [ ] La sincronización con Google Drive funciona en ambos sentidos
-- [ ] Se puede cerrar sesión
-- [ ] Se puede instalar como PWA en Android e iOS
-- [ ] La interfaz está completamente en español
+- [x] Se muestra pantalla de Login obligatoria
+- [x] Solo los emails autorizados pueden acceder
+- [x] Emails no autorizados reciben “Acceso denegado”
+- [x] Se puede añadir, editar y eliminar productos
+- [x] El listado se ordena correctamente por fecha de caducidad
+- [x] Los colores de urgencia se muestran bien
+- [x] Se pueden elegir fotos predeterminadas
+- [x] La fecha de compra es opcional
+- [x] La app funciona sin conexión
+- [ ] La sincronización con Google Drive funciona en ambos sentidos *(subida y descarga comprobadas con una cuenta; falta comprobar entre dos móviles con la segunda cuenta)*
+- [x] Se puede cerrar sesión
+- [ ] Se puede instalar como PWA en Android e iOS *(Android comprobado el 2026-11-21; falta iOS)*
+- [x] La interfaz está completamente en español
 
 ---
 

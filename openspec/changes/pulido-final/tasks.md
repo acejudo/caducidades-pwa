@@ -64,7 +64,7 @@
 - [x] 9.2 Recorrido con `captura-app.mjs`: alta sin scroll, aviso breve "Producto guardado", aviso de caducidad corto, Detalle con visor y Ajustes. Sin errores en la consola. Capturas en el scratchpad.
 - [x] 9.3 Manual en el móvil (tras desplegar): alta sin scroll, aviso breve al guardar y al eliminar, foto real en el Detalle y a pantalla completa, aviso "Hay cambios sin sincronizar" al día siguiente con un cambio pendiente (y que solo abre Google al tocarlo), y que las pestañas de color, los iconos y el plátano nuevo se ven bien.
 - [ ] 9.4 Manual: instalar la app como PWA en Android (Chrome, "Instalar app") y en iOS (Safari, "Añadir a pantalla de inicio"), comprobar el icono y que abre sin barra del navegador, y anotar el resultado. Si el icono se ve recortado o borroso, corregirlo.
-- [ ] 9.5 Comprobar uno a uno los criterios de aceptación de SPEC.md §10 (con las pruebas y lo verificado en 9.3 y 9.4) y marcarlos `[x]` en SPEC.md. Si alguno falla, anotarlo y avisar al usuario antes de seguir.
+- [x] 9.5 Comprobar uno a uno los criterios de aceptación de SPEC.md §10 (con las pruebas y lo verificado en 9.3 y 9.4) y marcarlos `[x]` en SPEC.md. Si alguno falla, anotarlo y avisar al usuario antes de seguir.
 
 ## Workflow follow-up
 
