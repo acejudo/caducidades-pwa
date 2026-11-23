@@ -2,7 +2,7 @@
 // Spec: openspec/specs/product-model. Importa solo de constantes.js (nunca de config.js),
 // para poder probarse en Node sin config.local.js.
 
-import { CATEGORIAS, URGENCIA } from './constantes.js';
+import { CATEGORIAS, URGENCIA, NOTAS_MAX, UNIDAD_MAX } from './constantes.js';
 
 export const TIPOS_FOTO = Object.freeze(['predeterminada', 'real', 'ninguna']);
 export const NOMBRE_MAX = 100;
@@ -101,6 +101,11 @@ export function validarProducto(producto) {
   }
 
   if (!producto.unidad) errores.unidad = 'La unidad es obligatoria';
+  else if (producto.unidad.length > UNIDAD_MAX) errores.unidad = `La unidad no puede tener más de ${UNIDAD_MAX} caracteres`;
+
+  if (producto.notas != null && producto.notas.length > NOTAS_MAX) {
+    errores.notas = `Las notas no pueden tener más de ${NOTAS_MAX} caracteres`;
+  }
 
   if (!CATEGORIAS.includes(producto.categoria)) {
     errores.categoria = `La categoría debe ser una de: ${listaEnEspanol(CATEGORIAS)}`;

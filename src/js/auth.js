@@ -3,8 +3,11 @@
 // Separa dos conceptos:
 // - Sesión: identidad autorizada recordada en el dispositivo (localStorage). Da acceso
 //   a la app, también sin conexión, hasta que el usuario cierra sesión.
-// - Token: credencial temporal (~1 h) para Google Drive (sessionStorage). No sobrevive
-//   a cerrar la app; se renueva con renovarToken() desde un gesto del usuario.
+// - Token: credencial temporal (~1 h) para Google Drive (sessionStorage, uno por
+//   ventana). No sobrevive a cerrar la app; se renueva con renovarToken() desde un gesto
+//   del usuario. Va ligado al email de la sesión que lo obtuvo: el de otra sesión no vale,
+//   y cada ventana olvida el suyo si otra cierra sesión (user-auth, "Token ligado a la
+//   sesión" y "Cierre de sesión en todas las ventanas").
 
 import { GOOGLE_CLIENT_ID, EMAILS_AUTORIZADOS_SHA256, DRIVE_SCOPE } from './config.js';
 
@@ -45,8 +48,12 @@ function borrar(almacen, clave) {
   }
 }
 
-const local = () => window.localStorage;
-const sesionNavegador = () => window.sessionStorage;
+// Entorno sustituible solo en las pruebas (usarEntornoAuth); la app usa el real.
+let entorno = {};
+
+const local = () => entorno.local ?? window.localStorage;
+const sesionNavegador = () => entorno.sesion ?? window.sessionStorage;
+const enLinea = () => (entorno.enLinea ? entorno.enLinea() : navigator.onLine);
 
 // En memoria por si el almacenamiento está bloqueado.
 let sesionEnMemoria = null;
@@ -58,12 +65,15 @@ export function sesionActual() {
   return { email: sesion.email, nombre: sesion.nombre || sesion.email };
 }
 
-// Token vigente con el permiso de Drive actual. Un token de antes del cambio de permiso
-// (solo drive.file) no cuenta: hay que renovarlo y aceptar el permiso nuevo.
+// Token vigente con el permiso de Drive actual y de la cuenta de la sesión. No cuentan un
+// token de antes del cambio de permiso (solo drive.file), uno de otra cuenta ni uno sin
+// cuenta (de antes de endurecimiento-seguridad): hay que renovarlo.
 export function tokenVigente() {
   const token = leer(sesionNavegador, CLAVE_TOKEN) ?? tokenEnMemoria;
   if (!token?.accessToken || !(Date.now() < token.expira)) return null;
   if (!String(token.scopes ?? '').split(' ').includes(DRIVE_SCOPE)) return null;
+  const sesion = sesionActual();
+  if (!sesion || !token.email || token.email !== sesion.email) return null;
   return token.accessToken;
 }
 
@@ -78,9 +88,20 @@ function guardarSesion(email, nombre) {
   escribir(local, CLAVE_SESION, sesionEnMemoria);
 }
 
-function guardarToken(accessToken, expiresIn, scopes) {
-  tokenEnMemoria = { accessToken, expira: Date.now() + Number(expiresIn) * 1000 - MARGEN_TOKEN_MS, scopes };
+function guardarToken(accessToken, expiresIn, scopes, email) {
+  tokenEnMemoria = { accessToken, expira: Date.now() + Number(expiresIn) * 1000 - MARGEN_TOKEN_MS, scopes, email };
   escribir(sesionNavegador, CLAVE_TOKEN, tokenEnMemoria);
+}
+
+// Olvida el token de esta ventana y pide su revocación si hay conexión (sin esperar).
+// Se revoca aunque haya caducado: no hace daño y cubre un reloj mal puesto.
+function olvidarYRevocarToken() {
+  const guardado = leer(sesionNavegador, CLAVE_TOKEN) ?? tokenEnMemoria;
+  olvidarToken();
+  const accessToken = guardado?.accessToken;
+  if (accessToken && enLinea()) {
+    cargarGoogle().then((google) => revocar(google, accessToken)).catch(() => {});
+  }
 }
 
 function olvidar() {
@@ -121,6 +142,7 @@ let promesaGis = null;
 
 // Carga el script de GIS una sola vez. Si falla, se descarta para poder reintentar.
 export function cargarGoogle() {
+  if (entorno.google) return Promise.resolve(entorno.google);
   if (window.google?.accounts?.oauth2) return Promise.resolve(window.google);
   if (!promesaGis) {
     promesaGis = new Promise((resolve, reject) => {
@@ -170,6 +192,7 @@ function revocar(google, accessToken) {
 }
 
 async function pedirPerfil(accessToken) {
+  if (entorno.perfil) return entorno.perfil(accessToken);
   const respuesta = await fetch(USERINFO_URL, { headers: { Authorization: `Bearer ${accessToken}` } });
   if (!respuesta.ok) throw new Error(`userinfo ${respuesta.status}`);
   return respuesta.json();
@@ -213,7 +236,7 @@ export async function iniciarSesion() {
   }
 
   guardarSesion(email, perfil.name || email);
-  guardarToken(accessToken, respuesta.expires_in, respuesta.scope ?? SCOPES);
+  guardarToken(accessToken, respuesta.expires_in, respuesta.scope ?? SCOPES, email);
   return { ok: true };
 }
 
@@ -221,7 +244,11 @@ export async function iniciarSesion() {
 // ejemplo, el de Drive ampliado), Google muestra el consentimiento de ese permiso
 // (user-auth, "Ampliación del permiso de Drive"). Debe llamarse desde un gesto del usuario
 // y con Google ya cargado (cargarGoogle()) para que no se bloquee la ventana.
-// Resultado: { ok: true, token } o { ok: false, motivo: 'cancelado' | 'sin-drive' | 'error' }.
+// Google entrega el token de la cuenta que se elija en su ventana (login_hint solo la
+// sugiere): se comprueba que es la de la sesión y, si no o no se puede comprobar, se
+// revoca sin guardarlo (user-auth, "Renovación con la misma cuenta").
+// Resultado: { ok: true, token } o
+// { ok: false, motivo: 'cancelado' | 'sin-drive' | 'otra-cuenta' | 'error' }.
 export async function renovarToken() {
   const sesion = sesionActual();
   if (!sesion) return { ok: false, motivo: 'error' };
@@ -239,17 +266,53 @@ export async function renovarToken() {
     revocar(google, respuesta.access_token);
     return { ok: false, motivo: 'sin-drive' };
   }
-  guardarToken(respuesta.access_token, respuesta.expires_in, respuesta.scope ?? SCOPES);
+  let email;
+  try {
+    email = String((await pedirPerfil(respuesta.access_token)).email ?? '').trim().toLowerCase();
+  } catch {
+    revocar(google, respuesta.access_token);
+    return { ok: false, motivo: 'error' };
+  }
+  if (email !== sesion.email) {
+    revocar(google, respuesta.access_token);
+    return { ok: false, motivo: 'otra-cuenta' };
+  }
+  guardarToken(respuesta.access_token, respuesta.expires_in, respuesta.scope ?? SCOPES, sesion.email);
   return { ok: true, token: respuesta.access_token };
 }
 
 // Borra la sesión y el token al momento; la revocación en Google va aparte y sin esperar.
-// Se revoca el token guardado aunque sea de un permiso anterior.
+// Se revoca el token guardado aunque haya caducado o sea de un permiso anterior. Las
+// demás ventanas se enteran por el evento storage (vigilarOtrasVentanas).
 export function cerrarSesion() {
-  const guardado = leer(sesionNavegador, CLAVE_TOKEN) ?? tokenEnMemoria;
-  const accessToken = guardado?.accessToken && Date.now() < guardado.expira ? guardado.accessToken : null;
+  olvidarYRevocarToken();
   olvidar();
-  if (accessToken && navigator.onLine) {
-    cargarGoogle().then((google) => revocar(google, accessToken)).catch(() => {});
-  }
+}
+
+// Escucha los cambios de la sesión hechos en otras ventanas de la app (el evento storage
+// solo llega a las demás). Si la sesión desaparece o pasa a ser de otra cuenta, olvida y
+// revoca el token de esta ventana y llama a `alCambiarSesion(sesionActual())`. Con
+// `key === null`, otra ventana ha vaciado localStorage. Devuelve la función que deja de
+// escuchar.
+export function vigilarOtrasVentanas({ alCambiarSesion = () => {} } = {}) {
+  const alCambiar = (evento) => {
+    if (evento.key !== CLAVE_SESION && evento.key !== null) return;
+    sesionEnMemoria = null;
+    const sesion = sesionActual();
+    const token = leer(sesionNavegador, CLAVE_TOKEN) ?? tokenEnMemoria;
+    if (sesion && token?.email === sesion.email) return;
+    olvidarYRevocarToken();
+    alCambiarSesion(sesion);
+  };
+  window.addEventListener('storage', alCambiar);
+  return () => window.removeEventListener('storage', alCambiar);
+}
+
+// Solo para las pruebas: sustituye el almacenamiento ({ local, sesion }), Google
+// ({ google }), la consulta del perfil ({ perfil }) y la red ({ enLinea }). Sin argumentos
+// vuelve al entorno real. La app no la usa.
+export function usarEntornoAuth(sustitutos = {}) {
+  entorno = sustitutos;
+  sesionEnMemoria = null;
+  tokenEnMemoria = null;
 }

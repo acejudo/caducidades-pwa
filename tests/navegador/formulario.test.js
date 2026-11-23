@@ -826,3 +826,24 @@ prueba('Lectura lenta en Editar', async () => {
   verdadero(!pantalla.elemento.textContent.includes('Cargando…'), 'se quita al terminar');
   verdadero(pantalla.elemento.textContent.includes('Este producto no existe'), 'pinta el resultado');
 });
+
+// ---------- Límites (endurecimiento-seguridad) ----------
+
+prueba('Mensaje en el formulario', async () => {
+  const lleno = async () => { throw new storage.ErrorLimiteProductos(); };
+  const raiz = await montar({ almacen: { crearProducto: lleno } });
+  escribir(raiz, 'nombre', 'Queso');
+  escribir(raiz, 'fechaCaducidad', dentroDe(9));
+  guardar(raiz).click();
+  const aviso = () => raiz.querySelector('.formulario__aviso');
+  await esperarA(() => visible(aviso()));
+  igual(aviso().textContent, 'Has llegado al máximo de 2000 productos. Elimina alguno para añadir más.');
+  igual(control(raiz, 'nombre').value, 'Queso', 'lo escrito se conserva');
+  igual(navegaciones.length, 0, 'no se navega');
+  igual(guardar(raiz).disabled, false);
+});
+
+prueba('las notas tienen un máximo de 1000 caracteres', async () => {
+  const raiz = await montar();
+  igual(control(raiz, 'notas').getAttribute('maxlength'), '1000');
+});

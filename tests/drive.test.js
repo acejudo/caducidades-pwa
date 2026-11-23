@@ -304,3 +304,31 @@ describe('Cliente de Drive: fotos', () => {
     await assert.rejects(cliente().papeleraFoto('archivo-foto'), ErrorNoDisponible);
   });
 });
+
+describe('Tamaño máximo del archivo de Drive', () => {
+  const { ErrorArchivoGrande } = drive;
+  const MAX = 5 * 1024 * 1024;
+  const conVersion = () => regla((p) => p.url.searchParams.get('fields') === 'version', () => json({ version: '1' }));
+
+  test('Archivo demasiado grande: por la cabecera, sin leer el cuerpo', async () => {
+    let leido = false;
+    const cuerpo = new ReadableStream({ pull(c) { leido = true; c.enqueue(new Uint8Array(1)); c.close(); } }, { highWaterMark: 0 });
+    conVersion();
+    regla((p) => p.url.searchParams.get('alt') === 'media', () => new Response(cuerpo, { headers: { 'Content-Length': String(MAX + 1) } }));
+    await assert.rejects(cliente().leer('abc'), (e) => ErrorArchivoGrande && e instanceof ErrorArchivoGrande);
+    assert.equal(leido, false);
+  });
+
+  test('Archivo demasiado grande: sin cabecera, por lo descargado', async () => {
+    conVersion();
+    regla((p) => p.url.searchParams.get('alt') === 'media', () => new Response(new Uint8Array(MAX + 1)));
+    await assert.rejects(cliente().leer('abc'), (e) => ErrorArchivoGrande && e instanceof ErrorArchivoGrande);
+  });
+
+  test('un archivo en el límite se lee', async () => {
+    conVersion();
+    const texto = `{"version":1,"productos":[]}${' '.repeat(MAX - 28)}`;
+    regla((p) => p.url.searchParams.get('alt') === 'media', () => new Response(texto));
+    assert.equal((await cliente().leer('abc')).texto.length, MAX);
+  });
+});

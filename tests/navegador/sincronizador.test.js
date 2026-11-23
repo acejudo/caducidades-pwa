@@ -805,3 +805,39 @@ prueba('token rechazado al descargar una foto: se olvida el token', async () => 
   await crear().sincronizar();
   igual(auth.olvidados, 1);
 });
+
+// ---------- Límites del archivo de Drive (endurecimiento-seguridad) ----------
+
+prueba('Archivo demasiado grande', async () => {
+  await storage.guardarSincronizados([producto('a', { nombre: 'Leche' })]);
+  driveFalso.poner('lista', [producto('b', { nombre: 'Pan' })]);
+  prefs.escribir({ archivoId: 'lista', pendiente: true, ultima: null });
+  driveFalso.fallar('leer', drive.ErrorArchivoGrande ? new drive.ErrorArchivoGrande() : new Error('sin ErrorArchivoGrande'));
+  await crear().sincronizar();
+  igual(driveFalso.llamadas.includes('escribir'), false, 'no se sobrescribe');
+  igualProfundo(await nombres(), ['Leche'], 'el dispositivo no cambia');
+  igual(estado().error, 'El archivo de la lista en Drive no es válido. No se ha cambiado nada.');
+  igual(estado().pendiente, true);
+});
+
+prueba('Baja con fecha en el futuro: se sube corregida', async () => {
+  const futura = producto('a', { eliminado: true, actualizado: '2036-11-13T12:00:00.000Z' });
+  driveFalso.poner('lista', [futura]);
+  prefs.escribir({ archivoId: 'lista', pendiente: false, ultima: null });
+  // Mismo producto ya corregido en local: la fusión no cambia nada, pero hay que subir.
+  await storage.guardarSincronizados([{ ...futura, actualizado: AHORA.toISOString() }]);
+  await crear().sincronizar();
+  igual(driveFalso.llamadas.includes('escribir'), true, 'se sube la versión corregida');
+  igual(driveFalso.productos('lista')[0].actualizado, AHORA.toISOString());
+  igual(estado().texto, 'Sincronizado');
+});
+
+prueba('Se elige otra cuenta al renovar: error sin sincronizar', async () => {
+  driveFalso.poner('lista', []);
+  auth.token = null;
+  auth.respuestaRenovar = { ok: false, motivo: 'otra-cuenta' };
+  await crear().sincronizar({ aPeticion: true });
+  igual(estado().texto, 'Error al sincronizar');
+  igual(estado().error, 'La cuenta de Google elegida no es la de la sesión. Vuelve a intentarlo con a@example.com.');
+  igualProfundo(driveFalso.llamadas, [], 'no se toca Drive');
+});

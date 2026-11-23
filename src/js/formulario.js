@@ -3,9 +3,9 @@
 // probarse sin config.local.js (tests/navegador/formulario.test.js).
 
 import {
-  obtenerProducto, crearProducto, actualizarProducto, eliminarProducto, guardarFoto, obtenerFoto,
+  obtenerProducto, crearProducto, actualizarProducto, eliminarProducto, guardarFoto, obtenerFoto, ErrorLimiteProductos,
 } from './storage.js';
-import { CATEGORIAS, UNIDADES } from './constantes.js';
+import { CATEGORIAS, UNIDADES, NOTAS_MAX, PRODUCTOS_MAX } from './constantes.js';
 import { ErrorValidacion } from './productos.js';
 import { ICONOS } from './iconos.js';
 import { volver, reemplazar } from './router.js';
@@ -125,7 +125,7 @@ function construirFormulario(valores, { edicion, hrefFoto, foto, imagen, obtener
     opciones(UNIDADES, valores.unidad));
   const categoria = control('select', 'categoria');
   categoria.append(...opciones(CATEGORIAS, valores.categoria));
-  const notas = control('textarea', 'notas', { rows: 2, placeholder: 'Añade cualquier detalle útil…' });
+  const notas = control('textarea', 'notas', { rows: 2, maxlength: NOTAS_MAX, placeholder: 'Añade cualquier detalle útil…' });
 
   const restar = el('button', { type: 'button', class: 'cantidad__boton', 'data-accion': 'restar', 'aria-label': 'Restar uno', text: '−' });
   const sumar = el('button', { type: 'button', class: 'cantidad__boton', 'data-accion': 'sumar', 'aria-label': 'Sumar uno', text: '+' });
@@ -370,6 +370,9 @@ export function crearPantallaFormulario({
       } catch (error) {
         if (error instanceof ErrorValidacion) {
           mostrarErrores(form, controles, error.campos, aviso);
+        } else if (error instanceof ErrorLimiteProductos) {
+          aviso.textContent = `Has llegado al máximo de ${PRODUCTOS_MAX} productos. Elimina alguno para añadir más.`;
+          aviso.hidden = false;
         } else {
           console.error('No se pudo guardar el producto:', error);
           aviso.textContent = 'No se pudo guardar el producto. Inténtalo de nuevo.';

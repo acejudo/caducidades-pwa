@@ -10,6 +10,7 @@ import { crearPantallaDetalle } from './detalle.js';
 import { volver, reemplazar } from './router.js';
 import {
   sesionActual, iniciarSesion, cerrarSesion, cargarGoogle, tokenVigente, renovarToken, olvidarToken, esEmailAutorizado,
+  vigilarOtrasVentanas,
 } from './auth.js';
 import { crearSincronizador } from './sincronizador.js';
 import { crearBotonSincronizacion, crearSeccionSincronizacion } from './estado-sincronizacion.js';
@@ -34,6 +35,17 @@ function detenerSincronizacion() {
   sincronizador.detener();
   sincronizacionIniciada = false;
 }
+
+// Otra ventana de la app ha cerrado sesión o cambiado de cuenta: auth.js ya ha olvidado el
+// token de esta. Sin sesión, esta ventana deja de sincronizar y pasa a Login (user-auth,
+// "Cierre de sesión en todas las ventanas").
+vigilarOtrasVentanas({
+  alCambiarSesion: (sesion) => {
+    if (sesion) return;
+    detenerSincronizacion();
+    reemplazar('/login');
+  },
+});
 
 // Sin token vigente, el toque para sincronizar abre la ventana de Google: se precarga
 // para que el navegador no la bloquee (design.md §6).

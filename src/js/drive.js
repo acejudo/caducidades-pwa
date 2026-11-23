@@ -3,7 +3,7 @@
 // prueba en Node con un fetch falso (tests/drive.test.js).
 
 import {
-  DRIVE_ARCHIVO, DRIVE_CARPETA, DRIVE_CARPETA_FOTOS, FOTO_MAX_BYTES, TIPOS_FOTO_REAL,
+  DRIVE_ARCHIVO, DRIVE_CARPETA, DRIVE_CARPETA_FOTOS, FOTO_MAX_BYTES, TIPOS_FOTO_REAL, ARCHIVO_MAX_BYTES,
 } from './constantes.js';
 
 const API = 'https://www.googleapis.com/drive/v3/files';
@@ -40,6 +40,14 @@ export class ErrorFotoNoValida extends Error {
   constructor(motivo) {
     super(`La foto de Drive no es válida: ${motivo}`);
     this.name = 'ErrorFotoNoValida';
+  }
+}
+
+// caducidades.json ocupa más de ARCHIVO_MAX_BYTES (drive-sync, "Tamaño máximo del archivo").
+export class ErrorArchivoGrande extends Error {
+  constructor() {
+    super(`El archivo de Drive ocupa más de ${ARCHIVO_MAX_BYTES} bytes`);
+    this.name = 'ErrorArchivoGrande';
   }
 }
 
@@ -128,10 +136,17 @@ export function crearClienteDrive({ token, fetch = globalThis.fetch.bind(globalT
 
     // La versión se lee antes que el contenido: si el archivo cambia en medio, la versión
     // anotada es la antigua y la comprobación antes de subir lo detecta (design.md §5).
+    // Más de ARCHIVO_MAX_BYTES: ErrorArchivoGrande (si la cabecera ya lo indica, no se lee).
     async leer(id) {
       const versionLeida = await version(id);
       const respuesta = await pedir(url(`${API}/${encodeURIComponent(id)}`, { alt: 'media' }), {}, { deArchivo: true });
-      return { texto: await respuesta.text(), version: versionLeida };
+      if (Number(respuesta.headers.get('content-length')) > ARCHIVO_MAX_BYTES) {
+        respuesta.body?.cancel().catch(() => {});
+        throw new ErrorArchivoGrande();
+      }
+      const datos = await respuesta.arrayBuffer();
+      if (datos.byteLength > ARCHIVO_MAX_BYTES) throw new ErrorArchivoGrande();
+      return { texto: new TextDecoder().decode(datos), version: versionLeida };
     },
 
     version,

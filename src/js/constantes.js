@@ -19,3 +19,13 @@ export const DRIVE_CARPETA_FOTOS = 'fotos';
 // Tamaño máximo de una foto descargada de Drive (las de la app rondan los 100–200 KB).
 export const FOTO_MAX_BYTES = 5 * 1024 * 1024;
 export const TIPOS_FOTO_REAL = Object.freeze(['image/webp', 'image/jpeg']);
+
+// Límites de datos (endurecimiento-seguridad, design.md §4). Lo que llega de Drive se
+// acota con ellos antes de guardarlo.
+export const NOTAS_MAX = 1000;
+export const UNIDAD_MAX = 20;
+// Productos guardados como máximo, contando las bajas aún no purgadas.
+export const PRODUCTOS_MAX = 2000;
+export const ARCHIVO_MAX_BYTES = 5 * 1024 * 1024;
+// Un `actualizado` remoto posterior a ahora + este margen se recorta a ahora.
+export const MARGEN_FUTURO_MS = 86_400_000;

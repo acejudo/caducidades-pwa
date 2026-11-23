@@ -8,7 +8,9 @@ import {
   listarTodos, guardarSincronizados, cambiosLocales,
   listarFotos, guardarFoto, obtenerFoto, marcarFotoSubida, borrarFoto,
 } from './storage.js';
-import { crearClienteDrive, ErrorRed, ErrorToken, ErrorNoDisponible } from './drive.js';
+import {
+  crearClienteDrive, ErrorRed, ErrorToken, ErrorNoDisponible, ErrorArchivoGrande,
+} from './drive.js';
 import {
   leerArchivo, crearArchivo, purgar, planificar, planificarFotos, textoEstado, ErrorArchivoNoValido,
 } from './sincronizacion.js';
@@ -23,6 +25,8 @@ export const MENSAJES = Object.freeze({
   drive: 'Google Drive no respondió como se esperaba. Inténtalo más tarde.',
   archivo: 'El archivo de la lista en Drive no es válido. No se ha cambiado nada.',
   permiso: 'Hace falta permitir el acceso a Google Drive.',
+  // Se completa con el email de la sesión (user-auth, "Renovación con la misma cuenta").
+  otraCuenta: 'La cuenta de Google elegida no es la de la sesión.',
 });
 
 // No hay lista en Drive y no se ha creado (el usuario no quiso o no se le preguntó).
@@ -53,7 +57,7 @@ export function preferenciasLocales(clave = CLAVE_PREFERENCIAS) {
 
 function mensajeDe(error) {
   if (error instanceof ErrorRed) return MENSAJES.red;
-  if (error instanceof ErrorArchivoNoValido) return MENSAJES.archivo;
+  if (error instanceof ErrorArchivoNoValido || error instanceof ErrorArchivoGrande) return MENSAJES.archivo;
   return MENSAJES.drive;
 }
 
@@ -172,10 +176,11 @@ export function crearSincronizador({
   async function sincronizarArchivo(drive, id) {
     for (let intento = 0; intento < INTENTOS_SUBIDA; intento += 1) {
       const { texto, version } = await drive.leer(id);
-      const { productos: remotos } = leerArchivo(texto);
+      const { productos: remotos, corregidos } = leerArchivo(texto, ahora());
       const plan = planificar(await almacen.listarTodos(), remotos, ahora());
       if (plan.cambiaLocal) await almacen.guardarSincronizados(plan.resultado, plan.idsPurgados);
-      if (!plan.hayQueSubir) return;
+      // Con fechas futuras corregidas, Drive aún tiene las originales: hay que subir.
+      if (!plan.hayQueSubir && corregidos === 0) return;
       if ((await drive.version(id)) !== version) continue;
       await drive.escribir(id, crearArchivo(plan.resultado, ahora()));
       return;
@@ -273,6 +278,9 @@ export function crearSincronizador({
         if (renovacion?.motivo === 'sin-drive') {
           fase = 'error';
           error = MENSAJES.permiso;
+        } else if (renovacion?.motivo === 'otra-cuenta') {
+          fase = 'error';
+          error = `${MENSAJES.otraCuenta} Vuelve a intentarlo con ${auth.sesionActual()?.email ?? 'la cuenta de la sesión'}.`;
         } else if (renovacion?.motivo === 'error') {
           fase = 'error';
           error = MENSAJES.red;

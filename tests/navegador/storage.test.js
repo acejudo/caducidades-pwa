@@ -437,3 +437,52 @@ prueba('guardarFoto no avisa de cambio local', async () => {
     dejar();
   }
 });
+
+// ---------- Máximo de productos (endurecimiento-seguridad) ----------
+
+// Escribe `n` registros válidos de golpe (bajas incluidas si `eliminados`), sin storage.js.
+async function llenarDirecto(n, { eliminados = 0 } = {}) {
+  await storage.listarProductos(); // crea la base de datos con su esquema
+  const bd = await abrirDirecto();
+  try {
+    await new Promise((resolver, rechazar) => {
+      const transaccion = bd.transaction('productos', 'readwrite');
+      const almacen = transaccion.objectStore('productos');
+      for (let i = 0; i < n; i += 1) {
+        almacen.put({
+          id: `relleno-${i}`, nombre: `Producto ${i}`, fechaCompra: null, fechaCaducidad: '2026-11-20',
+          cantidad: 1, unidad: 'ud', categoria: 'Nevera', foto: { tipo: 'ninguna', valor: null }, notas: null,
+          eliminado: i < eliminados, actualizado: '2026-11-10T10:00:00.000Z',
+        });
+      }
+      transaccion.oncomplete = () => resolver();
+      transaccion.onabort = () => rechazar(transaccion.error);
+    });
+  } finally {
+    bd.close();
+  }
+}
+
+async function contarDirecto() {
+  return conAlmacenDirecto('readonly', (almacen) => almacen.count());
+}
+
+prueba('Alta con el máximo alcanzado', async () => {
+  await llenarDirecto(2000, { eliminados: 5 });
+  await rechaza(storage.crearProducto({ ...MINIMO }), storage.ErrorLimiteProductos);
+  igual(await contarDirecto(), 2000, 'el número de productos no cambia');
+});
+
+prueba('alta con 1999 productos: se guarda', async () => {
+  await llenarDirecto(1999);
+  await storage.crearProducto({ ...MINIMO });
+  igual(await contarDirecto(), 2000);
+});
+
+prueba('Edición con el máximo alcanzado', async () => {
+  await llenarDirecto(2000);
+  const editado = await storage.actualizarProducto('relleno-7', { cantidad: 3 });
+  igual(editado.cantidad, 3);
+  await storage.eliminarProducto('relleno-8');
+  igual((await leerDirecto('relleno-8')).eliminado, true);
+});

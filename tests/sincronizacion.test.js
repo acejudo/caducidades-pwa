@@ -359,3 +359,38 @@ describe('Aviso de cambios sin sincronizar', () => {
     assert.equal(aviso({ fase: 'error' }), true);
   });
 });
+
+describe('Límites del archivo de Drive', () => {
+  const archivoCon = (productos) => JSON.stringify({ version: 1, ultimaActualizacion: AHORA.toISOString(), productos });
+  const enElFuturo = (ms) => new Date(AHORA.getTime() + ms).toISOString();
+
+  test('Demasiados productos en el archivo', () => {
+    const muchos = Array.from({ length: 2001 }, (_, i) => producto(`p${i}`));
+    assert.throws(() => leerArchivo(archivoCon(muchos), AHORA), ErrorArchivoNoValido);
+    const justos = muchos.slice(0, 2000);
+    assert.equal(leerArchivo(archivoCon(justos), AHORA).productos.length, 2000);
+  });
+
+  test('Baja con fecha en el futuro', () => {
+    const futura = producto('a', { eliminado: true, actualizado: enElFuturo(10 * 365 * 86_400_000) });
+    const [p] = leerArchivo(archivoCon([futura]), AHORA).productos;
+    assert.equal(p.actualizado, AHORA.toISOString(), 'recortado a la hora de la sincronización');
+    assert.equal(p.eliminado, true);
+    assert.equal(leerArchivo(archivoCon([futura]), AHORA).corregidos, 1, 'avisa de que hay que subir la versión corregida');
+    const despues = new Date(AHORA.getTime() + 91 * 86_400_000);
+    assert.deepEqual(purgar([p], despues), [], 'se purga a los 90 días');
+  });
+
+  test('Reloj ligeramente adelantado', () => {
+    const adelantado = enElFuturo(2 * 3_600_000);
+    const [p] = leerArchivo(archivoCon([producto('a', { actualizado: adelantado })]), AHORA).productos;
+    assert.equal(p.actualizado, adelantado);
+    assert.equal(leerArchivo(archivoCon([producto('a', { actualizado: adelantado })]), AHORA).corregidos, 0);
+  });
+
+  test('Notas demasiado largas en el archivo', () => {
+    const { productos, descartados } = leerArchivo(archivoCon([producto('a'), producto('b', { notas: 'n'.repeat(5000) })]), AHORA);
+    assert.deepEqual(ids(productos), ['a']);
+    assert.equal(descartados, 1);
+  });
+});

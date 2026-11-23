@@ -22,6 +22,14 @@ PWA privada para un grupo reducido de usuarios autorizados (lista blanca de emai
 - Todos los artefactos (proposal, design, specs y tasks), la UI, los mensajes y la documentación están **en español**.
 - No hagas commit ni push salvo que el usuario lo pida. Si lo pide, a menudo prefiere que le des los comandos para ejecutarlos él.
 
+## Nada de pistas en lo que se publica
+
+El repositorio es **público**. Todo lo versionado (artefactos de OpenSpec, README, comentarios, mensajes de *commit*) describe **qué hace la app**, nunca **dónde es débil**:
+- Sí: el comportamiento y cómo se prueba (el código publicado ya lo muestra).
+- No: el estado de las cuentas (verificación en dos pasos, protección de ramas, dónde están los secretos, orígenes OAuth configurados), los puntos débiles abiertos o aceptados, la valoración del origen de publicación ni los informes de auditoría. Eso va en `docs/security/` (en `.gitignore`), y los artefactos solo remiten a "las notas locales".
+- Un cambio que arregla un fallo de seguridad se sube **en el mismo *push*** que el arreglo, nunca antes.
+- Antes de proponer un *commit*, repasa el diff con este criterio.
+
 ## TDD (obligatorio)
 
 Todo código nuevo con lógica se desarrolla con TDD, y las pruebas quedan versionadas en `tests/`:
@@ -42,7 +50,7 @@ Antes de dar una tarea por terminada: `npm test` y `npm run test:navegador` en v
 
 ## Comprobación visual
 
-`node scripts/captura-app.mjs --ruta listado --salida captura.png [--productos productos.json] [--esperar ".lista-productos"] [--script recorrido.js]` abre la app real a tamaño de móvil (390×844) con una **sesión simulada** y productos de prueba, ejecuta opcionalmente un recorrido y guarda una captura. Imprime `{ listo, resultado, errores }`, con los errores de la consola. No toca `config.local.js`: lo sirve modificado en memoria. Úsalo para comparar con los mockups y para recorridos tocando antes de pedir la prueba en el móvil. Guarda las capturas en el scratchpad, no en el repo.
+`node scripts/captura-app.mjs --ruta listado --salida captura.png [--productos productos.json] [--esperar ".lista-productos"] [--script recorrido.js]` abre la app real a tamaño de móvil (390×844) con una **sesión simulada** y productos de prueba, ejecuta opcionalmente un recorrido y guarda una captura. Imprime `{ listo, resultado, errores }`, con los errores de la consola. No toca `config.local.js`: lo sirve modificado en memoria. Úsalo para comparar con los mockups y para recorridos tocando antes de pedir la prueba en el móvil. Guarda las capturas en el scratchpad, no en el repo. La CSP real está activa en las capturas y sus infracciones salen en `errores` como `CSP: …`. El estilo en línea de Google Sign-In (bloqueado a propósito) sale aparte, en `conocidos`. Chrome se controla por tubería, sin puerto de depuración.
 
 ## Convenciones y lecciones aprendidas
 
@@ -50,12 +58,14 @@ Antes de dar una tarea por terminada: `npm test` y `npm run test:navegador` en v
 - Cada pantalla vive en su módulo y se crea con `crear…({ dependencias })` → `{ elemento, cargado }`. `elemento` se entrega al router enseguida y `cargado` es la promesa de la primera carga, que usan las pruebas. Las dependencias (almacenamiento, navegación, `hoy`, `confirmar`) tienen valores por defecto reales y se sustituyen en las pruebas. Los módulos de pantalla no importan `ui.js`, `auth.js` ni `config.js`.
 - Si hace falta un "reinicio" para las pruebas (filtro, borradores, base de datos), se exporta una función explícita (`reiniciarFiltro`, `descartarBorradores`, `usarBaseDeDatos`) que la app no usa.
 - Confirmaciones con `confirmar()` de `src/js/dialogo.js`, nunca `window.confirm()`. Los textos siempre con `textContent`/`el()`, nunca `innerHTML`.
+- `index.html` tiene una Content-Security-Policy (`tests/csp.test.js`): nada de scripts ni `<style>` en línea, ni atributos `style="…"` en HTML (`element.style` desde JS sí vale), ni orígenes externos nuevos sin añadirlos a la directiva concreta.
 - `el()` ignora los hijos `null`/`false` (vale `cond && el(...)`), pero `append()` y `replaceChildren()` **los pintan como texto** ("false", "null"). Con ellos, filtra antes (`[...].filter(Boolean)`). Las pruebas de pantalla comprueban que no queda texto suelto.
 - Contraste: el texto blanco sobre los colores de urgencia o sobre `#EF4444` no llega a 4,5:1. Usa los tokens `--color-urgencia-*-texto`/`-suave` y `--color-peligro`.
 
 **Sincronización con Drive**
 - Capas: `sincronizacion.js` (puro: fusión, purga, archivo, plan de fotos y texto del estado; Node), `drive.js` (cliente `fetch` de Drive v3, con `fetch` y token inyectables; Node), `sincronizador.js` (orquesta cuándo sincronizar y publica el estado; navegador con dobles) y `estado-sincronizacion.js` (icono de la cabecera y sección de Ajustes).
 - Fotos reales: `fotos-reales.js` comprime (`comprimirFoto`) y pinta (`pintarFoto`, la usan Listado, Detalle y formulario) en el navegador. Se guardan como Blob en el almacén `fotos` de `storage.js` (v2) con un nombre `<uuid>.webp|jpg`, validado en `productos.js` (`esNombreFotoReal`). El sincronizador las sube, descarga y limpia **después** de la lista (`planificarFotos`), en la subcarpeta `fotos/` de la carpeta de la lista. El fallo de una descarga o de un borrado no para la sincronización; el de una subida, sí (y deja cambios pendientes).
+- El token de Drive guarda el email de la sesión y `tokenVigente()` rechaza el de otra cuenta. `vigilarOtrasVentanas` (evento `storage`) olvida y revoca el token cuando otra ventana cierra sesión o cambia de cuenta. Las pruebas de `auth.js` (`tests/navegador/auth.test.js`) sustituyen almacenamiento, Google, perfil y red con `usarEntornoAuth`.
 - El sincronizador no importa `auth.js`: recibe `auth` (`sesionActual`, `tokenVigente`, `renovarToken`, `olvidarToken`, `esEmailAutorizado`) inyectado. La instancia de la app (`sincronizador`) se crea en `ui.js`.
 - Las constantes de Drive (`DRIVE_SCOPE`, `DRIVE_CARPETA`…) viven en `constantes.js`, no en `config.js`.
 - Cualquier escritura nueva en `storage.js` que haga el usuario debe emitir `cambiosLocales` ('cambio'); lo que llega de Drive se guarda con `guardarSincronizados`, que no avisa y conserva `actualizado`.

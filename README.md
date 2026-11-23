@@ -28,7 +28,7 @@ Mientras desarrollas, marca *Update on reload* en DevTools → *Application → 
 
 ## Pruebas
 
-El proyecto se desarrolla con TDD: primero la prueba que falla y después el código. Las pruebas están en `tests/` y no usan dependencias. No hace falta `npm install` ni `config.local.js`.
+El proyecto se desarrolla con TDD: primero la prueba que falla y después el código. Las pruebas están en `tests/` y no usan dependencias. No hace falta `npm install`. Solo las pruebas de `auth.js` en el navegador (`tests/navegador/auth.test.js`) necesitan `config.local.js`, como la propia app. No tocan tu sesión ni Google: usan almacenamiento y Google falsos.
 
 ```bash
 npm test                 # lógica pura (tests/*.test.js) con node --test
@@ -84,6 +84,7 @@ package.json            # solo los comandos npm test y npm run test:navegador (s
 scripts/generar-config-local.mjs  # genera src/js/config.local.js
 scripts/probar-navegador.mjs      # ejecuta las pruebas de navegador en Chrome/Edge headless
 scripts/captura-app.mjs           # captura la app a tamaño móvil con sesión simulada (ver CLAUDE.md)
+scripts/lib/                      # utilidades de los scripts: rutas seguras y DevTools por tubería
 .github/workflows/pages.yml       # despliegue en GitHub Pages
 ```
 
@@ -124,6 +125,23 @@ Para añadir o quitar una persona: actualiza los usuarios de prueba en Google, e
 3. Después, la otra cuenta toca para sincronizar. Si le pregunta si quiere crear una lista nueva, es que aún no le ha llegado la carpeta compartida: que responda **Ahora no** y lo intente cuando la vea en *Compartido conmigo*.
 
 Si por error las dos cuentas crean su propia lista, cada dispositivo sigue usando la que recuerda. Para quedarse con una sola, la cuenta que creó la más reciente borra su carpeta `Caducidades` de Drive y la otra cuenta le comparte la suya: en la siguiente sincronización, sus dispositivos pasan a la lista que queda (la creada primero) y suben sus productos, así que no se pierde nada.
+
+## Seguridad
+
+- **Content-Security-Policy.** `src/index.html` solo permite scripts de la propia app y del cliente de Google Sign-In, y conexiones a las APIs de Google (`tests/csp.test.js` lo comprueba). Si una función nueva necesita otro servicio, añade su origen exacto a la directiva concreta (`connect-src`, `img-src`…). Nunca `*` ni `'unsafe-inline'`. Para ver las infracciones en local, `scripts/captura-app.mjs` las devuelve en `errores`. Es normal un aviso de estilo en línea bloqueado que viene de `accounts.google.com/gsi/client`: son los estilos del botón de Google, que la app no usa (`captura-app.mjs` lo pone aparte, en `conocidos`).
+- **Token de Google.** Va ligado a la cuenta de la sesión y no sobrevive a cerrar la app. Al cerrar sesión se revoca, también en las demás ventanas abiertas de la app.
+- **Datos de Drive.** Lo que llega de `caducidades.json` se valida y se acota (tamaño del archivo, número de productos, longitud de los textos y fechas) antes de guardarlo.
+- **Retirar el acceso.** Quien quiera quitar a la app el permiso sobre su Drive puede hacerlo en <https://myaccount.google.com/permissions>.
+
+### Recomendaciones para desplegar tu copia
+
+- Activa la verificación en dos pasos en GitHub y en la cuenta de Google del proyecto de Google Cloud: quien entre en una de las dos podría publicar código o cambiar la configuración.
+- Autoriza solo los orígenes de JavaScript que uses (tu dirección de publicación y `http://localhost:8080`).
+- Mantén la app OAuth en estado **Prueba**, con solo los usuarios autorizados.
+- Guarda `GOOGLE_CLIENT_ID` y `EMAILS_AUTORIZADOS` como secretos del entorno `github-pages` y protege la rama principal.
+- Las actions del workflow van fijadas por SHA. Para actualizarlas, busca el SHA de la etiqueta nueva con `git ls-remote --tags https://github.com/actions/<action>.git` y cámbialo junto con el comentario de versión.
+- Revisa de vez en cuando el historial con [gitleaks](https://github.com/gitleaks/gitleaks) sobre un clon completo.
+- No subas informes de auditoría ni notas sobre el estado de tus cuentas: `docs/security/` está en `.gitignore` para eso.
 
 ## Iconos
 

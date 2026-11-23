@@ -91,13 +91,22 @@ export function reemplazar(path) {
   procesar();
 }
 
-function encontrar(path) {
+// Ruta registrada que coincide con `path`, o null. Un parámetro con una secuencia de
+// escape no válida (un `%` suelto) cuenta como ruta inexistente: sin esto, el URIError
+// dejaba la app en blanco (app-navigation, "Direcciones con codificación no válida").
+// Exportada para las pruebas.
+export function encontrar(path) {
   for (const ruta of rutas) {
     const coincidencia = ruta.regex.exec(path);
     if (!coincidencia) continue;
-    const params = Object.fromEntries(
-      ruta.nombres.map((nombre, i) => [nombre, decodeURIComponent(coincidencia[i + 1])]),
-    );
+    let params;
+    try {
+      params = Object.fromEntries(
+        ruta.nombres.map((nombre, i) => [nombre, decodeURIComponent(coincidencia[i + 1])]),
+      );
+    } catch {
+      continue;
+    }
     return { ruta, path, params };
   }
   return null;

@@ -16,5 +16,10 @@ desktop.ini
 # Configuración con datos sensibles (se genera con scripts/generar-config-local.mjs)
 src/js/config.local.js
 
-# Informes locales de auditoría de seguridad (se revisan en pulido-final; no se publican)
+# Secretos y claves que nunca deben subirse
+.env*
+*.pem
+*.key
+
+# Informes y notas locales de seguridad: no se publican nunca (ver CLAUDE.md)
 docs/security/

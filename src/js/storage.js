@@ -6,6 +6,7 @@ import {
   ErrorValidacion, aplicarCambios, marcarEliminado, nuevoProducto, ordenarPorCaducidad,
 } from './productos.js';
 import { fusionar } from './sincronizacion.js';
+import { PRODUCTOS_MAX } from './constantes.js';
 
 const VERSION = 2;
 const ALMACEN = 'productos';
@@ -21,6 +22,14 @@ export class ErrorAlmacenamiento extends Error {
     super(mensaje);
     this.name = 'ErrorAlmacenamiento';
     this.causa = causa;
+  }
+}
+
+// El dispositivo ya tiene PRODUCTOS_MAX productos (bajas sin purgar incluidas).
+export class ErrorLimiteProductos extends Error {
+  constructor() {
+    super(`No se pueden guardar más de ${PRODUCTOS_MAX} productos`);
+    this.name = 'ErrorLimiteProductos';
   }
 }
 
@@ -104,7 +113,7 @@ function peticion(solicitud) {
 }
 
 function esErrorDeDominio(error) {
-  return error instanceof ErrorNoEncontrado || error instanceof ErrorValidacion;
+  return error instanceof ErrorNoEncontrado || error instanceof ErrorValidacion || error instanceof ErrorLimiteProductos;
 }
 
 // Ejecuta `operacion(almacen)` en una transacción y devuelve su resultado cuando la
@@ -167,11 +176,15 @@ export async function obtenerProducto(id) {
   return producto && !producto.eliminado ? producto : null;
 }
 
-// Valida y guarda un producto nuevo; devuelve el producto guardado.
-// Lanza ErrorValidacion (no se guarda nada) o ErrorAlmacenamiento.
+// Valida y guarda un producto nuevo; devuelve el producto guardado. Lanza
+// ErrorValidacion, ErrorLimiteProductos (no se guarda nada) o ErrorAlmacenamiento.
+// El recuento incluye las bajas sin purgar: también van al archivo de Drive.
 export async function crearProducto(datos) {
   const producto = nuevoProducto(datos);
-  await enTransaccion('readwrite', (almacen) => peticion(almacen.add(producto)));
+  await enTransaccion('readwrite', async (almacen) => {
+    if ((await peticion(almacen.count())) >= PRODUCTOS_MAX) throw new ErrorLimiteProductos();
+    await peticion(almacen.add(producto));
+  });
   avisarCambio();
   return producto;
 }

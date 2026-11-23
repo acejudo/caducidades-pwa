@@ -438,3 +438,25 @@ describe('expiry-alerts: productos urgentes', () => {
     assert.equal(r.texto, '1 producto a punto de caducar');
   });
 });
+
+describe('product-model: longitudes máximas', () => {
+  const camposConError = (datos) => Object.keys(validarProducto(normalizarProducto({ ...MINIMO, ...datos })));
+
+  test('Notas demasiado largas', () => {
+    const errores = validarProducto(normalizarProducto({ ...MINIMO, notas: 'a'.repeat(1001) }));
+    assert.deepEqual(Object.keys(errores), ['notas']);
+    assert.match(errores.notas, /1000/);
+    assert.throws(() => nuevoProducto({ ...MINIMO, notas: 'a'.repeat(1001) }), (e) => 'notas' in e.campos);
+  });
+
+  test('Notas en el límite', () => {
+    const p = nuevoProducto({ ...MINIMO, notas: 'a'.repeat(1000) });
+    assert.equal(p.notas.length, 1000);
+    assert.deepEqual(camposConError({ notas: `  ${'a'.repeat(1000)}  ` }), [], 'se mide tras recortar');
+  });
+
+  test('Unidad demasiado larga', () => {
+    assert.deepEqual(camposConError({ unidad: 'u'.repeat(21) }), ['unidad']);
+    assert.deepEqual(camposConError({ unidad: 'u'.repeat(20) }), []);
+  });
+});

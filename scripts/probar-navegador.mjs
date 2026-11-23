@@ -2,7 +2,8 @@
 // Ejecuta las pruebas de navegador (tests/navegador/) en Chrome o Edge headless, sin
 // dependencias.
 //
-// 1. Sirve la raíz del repo con node:http en un puerto libre de localhost.
+// 1. Sirve `src/` y `tests/` del repo (nada más: ni `.git` ni archivos con punto) con
+//    node:http en un puerto libre, solo en 127.0.0.1 (loopback). No cambiar a 0.0.0.0.
 // 2. Abre tests/navegador/?informar=1 en el navegador headless con un perfil temporal.
 // 3. La página envía su resultado por POST a /__resultado; el script lo muestra y sale
 //    con código 0 (todo en verde) o 1 (algún fallo, sin resultado o sin navegador).
@@ -15,8 +16,9 @@ import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { extname, join, normalize, sep } from 'node:path';
+import { extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resolverArchivo } from './lib/servir.mjs';
 
 const RAIZ = fileURLToPath(new URL('..', import.meta.url));
 const TIEMPO_MAXIMO_MS = 60_000;
@@ -67,6 +69,16 @@ let alRecibirResultado;
 const resultadoRecibido = new Promise((resolver) => { alRecibirResultado = resolver; });
 
 const servidor = createServer(async (peticion, respuesta) => {
+  try {
+    await responder(peticion, respuesta);
+  } catch {
+    // Nunca tira el servidor: un error en una petición solo afecta a esa petición.
+    if (!respuesta.headersSent) respuesta.writeHead(500);
+    respuesta.end();
+  }
+});
+
+async function responder(peticion, respuesta) {
   const url = new URL(peticion.url, 'http://localhost');
 
   if (peticion.method === 'POST' && url.pathname === '/__resultado') {
@@ -81,11 +93,9 @@ const servidor = createServer(async (peticion, respuesta) => {
     return;
   }
 
-  let ruta = decodeURIComponent(url.pathname);
-  if (ruta.endsWith('/')) ruta += 'index.html';
-  const archivo = normalize(join(RAIZ, ruta));
-  if (!archivo.startsWith(normalize(RAIZ + sep)) && archivo !== normalize(RAIZ)) {
-    respuesta.writeHead(403).end();
+  const archivo = resolverArchivo({ raiz: RAIZ, permitidas: ['src', 'tests'], pathname: url.pathname });
+  if (!archivo) {
+    respuesta.writeHead(404).end();
     return;
   }
   try {
@@ -98,8 +108,9 @@ const servidor = createServer(async (peticion, respuesta) => {
   } catch {
     respuesta.writeHead(404).end();
   }
-});
+}
 
+// Solo loopback: el servidor no debe ser accesible desde la red.
 await new Promise((resolver) => servidor.listen(0, '127.0.0.1', resolver));
 // localhost (y no 127.0.0.1) para que el origen sea un contexto seguro igual que en desarrollo.
 const direccion = `http://localhost:${servidor.address().port}/tests/navegador/?informar=1`;

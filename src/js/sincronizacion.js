@@ -3,6 +3,7 @@
 // Sin DOM, sin red ni almacenamiento: se prueba en Node (tests/sincronizacion.test.js).
 
 import { normalizarProducto, validarProducto, esNombreFotoReal } from './productos.js';
+import { PRODUCTOS_MAX, MARGEN_FUTURO_MS } from './constantes.js';
 
 export const VERSION_ARCHIVO = 1;
 // Las bajas con más días que estos se quitan del dispositivo y del archivo.
@@ -19,19 +20,27 @@ export class ErrorArchivoNoValido extends Error {
 
 const esFechaHora = (valor) => typeof valor === 'string' && !Number.isNaN(Date.parse(valor));
 
-// Producto del archivo listo para guardar, o null si no cumple el modelo.
-function productoDelArchivo(datos) {
+// Producto del archivo listo para guardar, o null si no cumple el modelo. Un `actualizado`
+// demasiado en el futuro se recorta a `ahora` y se marca con `corregido`: si no, esa
+// versión ganaría siempre y una baja no se purgaría nunca (drive-sync, "Fechas de
+// modificación en el futuro").
+function productoDelArchivo(datos, ahora) {
   if (!datos || typeof datos !== 'object') return null;
   const { id, eliminado, actualizado } = datos;
   if (typeof id !== 'string' || !id || typeof eliminado !== 'boolean' || !esFechaHora(actualizado)) return null;
   const campos = normalizarProducto(datos);
   if (Object.keys(validarProducto(campos)).length > 0) return null;
-  return { id, ...campos, eliminado, actualizado };
+  if (Date.parse(actualizado) > ahora.getTime() + MARGEN_FUTURO_MS) {
+    return { producto: { id, ...campos, eliminado, actualizado: ahora.toISOString() }, corregido: true };
+  }
+  return { producto: { id, ...campos, eliminado, actualizado }, corregido: false };
 }
 
-// Texto de caducidades.json → { productos, descartados }. Lanza ErrorArchivoNoValido si
-// no es un JSON con el formato de SPEC §4.2; los productos no válidos se descartan.
-export function leerArchivo(texto) {
+// Texto de caducidades.json → { productos, descartados, corregidos }. Lanza
+// ErrorArchivoNoValido si no es un JSON con el formato de SPEC §4.2 o si tiene más de
+// PRODUCTOS_MAX productos; los productos no válidos se descartan. Si `corregidos` es
+// mayor que 0, hay que subir el archivo aunque la fusión no cambie nada.
+export function leerArchivo(texto, ahora = new Date()) {
   let archivo;
   try {
     archivo = JSON.parse(texto);
@@ -42,8 +51,15 @@ export function leerArchivo(texto) {
     || archivo.version !== VERSION_ARCHIVO || !Array.isArray(archivo.productos)) {
     throw new ErrorArchivoNoValido('El archivo de Drive no tiene el formato esperado');
   }
-  const productos = archivo.productos.map(productoDelArchivo).filter(Boolean);
-  return { productos, descartados: archivo.productos.length - productos.length };
+  if (archivo.productos.length > PRODUCTOS_MAX) {
+    throw new ErrorArchivoNoValido(`El archivo de Drive tiene más de ${PRODUCTOS_MAX} productos`);
+  }
+  const leidos = archivo.productos.map((datos) => productoDelArchivo(datos, ahora)).filter(Boolean);
+  return {
+    productos: leidos.map((l) => l.producto),
+    descartados: archivo.productos.length - leidos.length,
+    corregidos: leidos.filter((l) => l.corregido).length,
+  };
 }
 
 // Texto del archivo con todos los productos (también los eliminados), ordenados por id
