@@ -28,7 +28,18 @@ Antes de validar, los campos de texto SHALL normalizarse quitando los espacios d
 - **THEN** el nombre guardado es "Leche" y las notas son `null`
 
 ### Requirement: Validación de un producto
-Un producto MUST NOT guardarse si algún campo no es válido. El error SHALL indicar cada campo incorrecto con un mensaje en español. Reglas: `nombre` obligatorio (1 a 100 caracteres); `fechaCaducidad` obligatoria; las fechas deben ser días reales del calendario; `cantidad` número mayor que 0; `unidad` no vacía; `categoria` de la lista; `foto.tipo` válido; y, si `foto.tipo` es `real`, `foto.valor` MUST ser un nombre de foto válido: un UUID en minúsculas seguido de `.webp` o `.jpg`.
+Un producto MUST NOT guardarse si algún campo no es válido. El error SHALL indicar cada campo incorrecto con un mensaje en español. Reglas:
+- `nombre` obligatorio, de 1 a 100 caracteres.
+- `fechaCaducidad` obligatoria.
+- Las fechas deben ser días reales del calendario.
+- `cantidad`: número mayor que 0.
+- `unidad` no vacía y de 20 caracteres como máximo.
+- `categoria` de la lista.
+- `notas`, si se indican, de 1000 caracteres como máximo.
+- `foto.tipo` válido.
+- Si `foto.tipo` es `real`, `foto.valor` MUST ser un nombre de foto válido: un UUID en minúsculas seguido de `.webp` o `.jpg`.
+
+Las longitudes se miden después de recortar los espacios sobrantes.
 
 #### Scenario: Faltan los obligatorios
 - **WHEN** se intenta crear un producto sin nombre y sin fecha de caducidad
@@ -57,6 +68,18 @@ Un producto MUST NOT guardarse si algún campo no es válido. El error SHALL ind
 #### Scenario: Nombre de foto real no válido
 - **WHEN** se intenta guardar un producto con foto real de valor "../caducidades.json", "foto.png" o "ABC.webp"
 - **THEN** no se guarda y el error indica el campo `foto`
+
+#### Scenario: Notas demasiado largas
+- **WHEN** se intenta guardar un producto con unas notas de 1001 caracteres
+- **THEN** no se guarda y el error indica el campo `notas` con un mensaje en español que dice el máximo
+
+#### Scenario: Notas en el límite
+- **WHEN** se crea un producto con unas notas de 1000 caracteres
+- **THEN** se guarda con esas notas
+
+#### Scenario: Unidad demasiado larga
+- **WHEN** se intenta guardar un producto con una unidad de 21 caracteres
+- **THEN** no se guarda y el error indica el campo `unidad`
 
 ### Requirement: Identificador único
 Cada producto nuevo SHALL recibir un identificador único generado por la app, que MUST NOT cambiar durante la vida del producto. El identificador no lo elige el usuario.

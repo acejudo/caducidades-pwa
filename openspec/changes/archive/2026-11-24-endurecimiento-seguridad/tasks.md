@@ -85,21 +85,21 @@
 - [x] 8.1 Rojo: crear `tests/ci.test.js`. Cada `uses:` de `.github/workflows/*.yml` va fijado a un SHA de 40 hexadecimales con un comentario de versión, y el checkout lleva `persist-credentials: false`. Verificar que falla con `npm test`.
 - [x] 8.2 Verde: obtener el SHA de cada action en la versión que ya se usa (`git ls-remote` o `gh api`, resolviendo los *tags* anotados con `^{}`, design §6), editar `pages.yml` y quitar el comentario que remitía a este cambio. Verificar con `npm test` en verde.
 - [x] 8.3 `.gitignore`: añadir `.env*`, `*.pem` y `*.key`, y corregir el comentario de `docs/security/`. Verificar con `git check-ignore -v .env prueba.pem prueba.key` que los tres quedan ignorados.
-- [ ] 8.4 Manual (usuario), tras el *push*: el workflow queda en verde con los SHAs y la app publicada funciona.
-- [ ] 8.5 Manual (usuario): configuración del repositorio en GitHub según la sección 1 de las notas locales (`docs/security/revision-manual.md`, fuera de git). Verificar que un despliegue posterior sigue en verde y anotar el resultado en esas notas.
-- [ ] 8.6 Manual (usuario): pasar gitleaks sobre un clon completo con los comandos de la sección 4 de las notas locales. Verificar que no hay hallazgos o que se han revisado (y rotado el secreto si era real). Anotar el resultado en las notas locales.
+- [x] 8.4 Manual (usuario), tras el *push*: el workflow queda en verde con los SHAs y la app publicada funciona.
+- [x] 8.5 Manual (usuario): configuración del repositorio en GitHub según la sección 1 de las notas locales (`docs/security/revision-manual.md`, fuera de git). Verificar que un despliegue posterior sigue en verde y anotar el resultado en esas notas.
+- [x] 8.6 Manual (usuario): pasar gitleaks sobre un clon completo con los comandos de la sección 4 de las notas locales. Verificar que no hay hallazgos o que se han revisado (y rotado el secreto si era real). Anotar el resultado en las notas locales.
 
 ## 9. Documentación, revisión manual y verificación final
 
 - [x] 9.1 Añadir la sección "Seguridad" al `README.md` con el contenido genérico de design §9: la CSP y cómo ampliarla, cómo retirar el acceso de la app y las recomendaciones para quien despliegue su copia, redactadas como consejos y sin decir si están hechas. Verificar que los enlaces funcionan y que la sección no revela el estado de las cuentas ni puntos débiles abiertos (design §11).
-- [ ] 9.2 Manual, con el usuario: repasar las secciones 1 y 2 de las notas locales (`docs/security/revision-manual.md`) y anotar allí cada comprobación y la decisión sobre el origen de publicación, con la fecha. No anotar nada de esto en archivos versionados.
-- [ ] 9.3 Manual (usuario), con la app publicada:
+- [x] 9.2 Manual, con el usuario: repasar las secciones 1 y 2 de las notas locales (`docs/security/revision-manual.md`) y anotar allí cada comprobación y la decisión sobre el origen de publicación, con la fecha. No anotar nada de esto en archivos versionados.
+- [x] 9.3 Manual (usuario), con la app publicada:
   - En el escritorio, dos ventanas con sesión. Sincronizar en la segunda y cerrar sesión en la primera: la segunda pasa a Login. Al iniciar sesión otra vez, la segunda no sincroniza hasta un toque nuevo.
   - En el móvil: login, sincronizar una lista con fotos (subida y descarga), abrir sin conexión y cerrar sesión, todo sin más infracciones de la CSP que el estilo en línea de Google Sign-In (design §3). Mirarlo en la consola de Chrome con depuración remota, o en DevTools del escritorio para lo que no depende del móvil.
 - [x] 9.4 Manual (usuario), antes de desplegar: comprobar en la app real que ningún producto supera los límites nuevos (notas de más de 1000 caracteres o unidad de más de 20), por ejemplo desde la consola de DevTools del escritorio con la sesión real.
 - [x] 9.5 Verificación final: `npm test` y `npm run test:navegador` en verde, y el recorrido de `captura-app.mjs` sin errores ni infracciones de la CSP.
-- [ ] 9.6 Manual (usuario), tras desplegar los arreglos: volver a ejecutar la auditoría con la skill <https://github.com/cloudflare/security-audit-skill> sobre el commit desplegado, según la sección 5 de las notas locales. Dejar el informe nuevo en `docs/security/` (fuera de git) y revisarlo juntos. Los arreglos triviales van aquí; el resto, en un cambio nuevo.
-- [ ] 9.7 Antes de cada *commit* de este cambio, repasar el diff (`git diff --cached`) buscando pistas para un atacante, según design §11: estado de las cuentas, puntos débiles abiertos o aceptados, contenido de `docs/security/`. Verificar también con `git status` que no entra nada de `docs/security/` y que la carpeta del cambio va en el mismo *push* que los arreglos.
+- [x] 9.6 Manual (usuario), tras desplegar los arreglos: volver a ejecutar la auditoría con la skill <https://github.com/cloudflare/security-audit-skill> sobre el commit desplegado, según la sección 5 de las notas locales. Dejar el informe nuevo en `docs/security/` (fuera de git) y revisarlo juntos. Los arreglos triviales van aquí; el resto, en un cambio nuevo.
+- [x] 9.7 Antes de cada *commit* de este cambio, repasar el diff (`git diff --cached`) buscando pistas para un atacante, según design §11: estado de las cuentas, puntos débiles abiertos o aceptados, contenido de `docs/security/`. Verificar también con `git status` que no entra nada de `docs/security/` y que la carpeta del cambio va en el mismo *push* que los arreglos.
 
 ## Seguimiento del flujo
 

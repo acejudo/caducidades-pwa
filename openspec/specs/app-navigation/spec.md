@@ -106,3 +106,10 @@ Todas las pantallas de la sesión SHALL ser accesibles tocando, sin escribir URL
 #### Scenario: App instalada sin barra de direcciones
 - **WHEN** un usuario con sesión y al menos un producto guardado usa la app instalada a pantalla completa
 - **THEN** puede llegar a las seis pantallas de la sesión solo tocando elementos de la interfaz
+
+### Requirement: Direcciones con codificación no válida
+Una dirección cuya ruta contiene una secuencia de escape no válida (por ejemplo, un `%` que no va seguido de dos dígitos hexadecimales) SHALL tratarse como una ruta inexistente. La app MUST NOT quedarse en blanco ni lanzar un error sin capturar.
+
+#### Scenario: Porcentaje mal formado
+- **WHEN** el usuario abre `#/producto/%E0%A4%A` o `#/producto/100%`
+- **THEN** se muestra Listado y la URL pasa a ser la de Listado

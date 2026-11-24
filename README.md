@@ -109,7 +109,7 @@ Con tu cuenta personal en <https://console.cloud.google.com/>:
      - `http://localhost:8080`
 3. Copia el **ID de cliente**.
 
-Para añadir o quitar una persona: actualiza los usuarios de prueba en Google, el Secret `EMAILS_AUTORIZADOS` y tu `src/js/config.local.js`. Si un email deja de estar autorizado, su sesión guardada se borra la próxima vez que abra la app.
+Para añadir o quitar una persona: actualiza los usuarios de prueba en Google, el secreto `EMAILS_AUTORIZADOS` del entorno `github-pages` y tu `src/js/config.local.js`. Si un email deja de estar autorizado, su sesión guardada se borra la próxima vez que abra la app.
 
 ## Sincronización con Google Drive
 
@@ -160,11 +160,11 @@ La publicación la hace el workflow [.github/workflows/pages.yml](.github/workfl
 
 Configuración inicial (una sola vez):
 
-1. En el repo, *Settings → Secrets and variables → Actions → New repository secret*:
+1. *Settings → Pages → Build and deployment → Source:* **GitHub Actions**. Esto crea el entorno `github-pages`.
+2. En *Settings → Environments → github-pages → Environment secrets → Add environment secret* (secretos del entorno, no del repositorio: solo los ve el despliegue):
    - `GOOGLE_CLIENT_ID`: el ID de cliente.
    - `EMAILS_AUTORIZADOS`: los emails separados por coma (`uno@gmail.com,otra@gmail.com`).
-2. *Settings → Pages → Build and deployment → Source:* **GitHub Actions**.
-3. Haz push a `main` (o lanza el workflow a mano en *Actions*). Si falta un Secret, el workflow falla y no publica.
+3. Haz push a `main` (o lanza el workflow a mano en *Actions → Publicar en GitHub Pages → Run workflow*). Si falta un Secret, el workflow falla y no publica. Si falla solo el último paso con "No artifacts named github-pages were found", suele ser puntual: *Re-run all jobs*.
 
 Antes de cada publicación, añade a `SHELL_FILES` de [src/sw.js](src/sw.js) cualquier archivo nuevo del shell.
 
