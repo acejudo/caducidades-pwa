@@ -32,7 +32,7 @@ Un producto MUST NOT guardarse si algún campo no es válido. El error SHALL ind
 - `nombre` obligatorio, de 1 a 100 caracteres.
 - `fechaCaducidad` obligatoria.
 - Las fechas deben ser días reales del calendario.
-- `cantidad`: número mayor que 0.
+- `cantidad`: número mayor que 0 y de 9999 como máximo, con decimales.
 - `unidad` no vacía y de 20 caracteres como máximo.
 - `categoria` de la lista.
 - `notas`, si se indican, de 1000 caracteres como máximo.
@@ -60,6 +60,14 @@ Las longitudes se miden después de recortar los espacios sobrantes.
 #### Scenario: Cantidad decimal
 - **WHEN** se crea un producto con cantidad 0.5 y unidad "kg"
 - **THEN** se guarda con cantidad 0.5
+
+#### Scenario: Cantidad en el máximo
+- **WHEN** se crea un producto con cantidad 9999 o con cantidad 9998.5
+- **THEN** se guarda con esa cantidad
+
+#### Scenario: Cantidad por encima del máximo
+- **WHEN** se intenta guardar un producto con cantidad 10000 o con cantidad 9999.5
+- **THEN** no se guarda y el error indica el campo `cantidad` con un mensaje en español que dice el máximo
 
 #### Scenario: Nombre de foto real válido
 - **WHEN** se crea un producto con `foto: { tipo: "real", valor: "3f2b8c1e-9a4d-4e6f-8b2a-1c5d7e9f0a3b.webp" }`

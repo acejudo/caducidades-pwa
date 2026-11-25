@@ -66,7 +66,7 @@
 - [x] 8.2 Antes del *commit*:
   - Repasar `git diff --cached` con la regla de `CLAUDE.md`: los artefactos describen el comportamiento, sin pistas para un atacante ni referencias a `docs/security/`.
   - Comprobar que la carpeta del cambio va en el mismo *push* que el código.
-- [ ] 8.3 Manual (usuario), tras desplegar y abrir y cerrar la app una vez en el móvil:
+- [x] 8.3 Manual (usuario), tras desplegar y abrir y cerrar la app una vez en el móvil:
   - Sincronizar.
   - Comprobar que el Listado tiene los mismos productos que antes, sin ninguno perdido, y con sus fotos.
   - El formulario no deja pasar de 9999.
