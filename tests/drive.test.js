@@ -332,3 +332,69 @@ describe('Tamaño máximo del archivo de Drive', () => {
     assert.equal((await cliente().leer('abc')).texto.length, MAX);
   });
 });
+
+// Los topes se aplican a lo descargado aunque Drive no indique el tamaño o indique uno
+// menor (drive-sync, "Tamaño máximo del archivo de Drive" y "Descarga de fotos"): la
+// descarga se corta poco después de pasar el tope, sin leer el resto.
+describe('Descargas con tope aunque no se indique el tamaño', () => {
+  const { ErrorArchivoGrande, ErrorFotoNoValida } = drive;
+  const MAX = 5 * 1024 * 1024;
+  const TROZO = 64 * 1024;
+  const conVersion = () => regla((p) => p.url.searchParams.get('fields') === 'version', () => json({ version: '1' }));
+
+  // Cuerpo de 16 MiB en trozos de 64 KiB que cuenta los trozos entregados. Es finito para
+  // que, sin el corte, la descarga termine y la prueba falle en vez de colgarse.
+  function cuerpoSinFin() {
+    const estado = { trozos: 0 };
+    estado.cuerpo = new ReadableStream({
+      pull(c) {
+        if (estado.trozos * TROZO >= 16 * 1024 * 1024) { c.close(); return; }
+        estado.trozos += 1;
+        c.enqueue(new Uint8Array(TROZO));
+      },
+    }, { highWaterMark: 0 });
+    return estado;
+  }
+  const leidoComoMucho = (estado) => assert.ok(
+    estado.trozos * TROZO <= MAX + 2 * TROZO,
+    `se leyeron ${estado.trozos * TROZO} bytes; como mucho el tope más un trozo`,
+  );
+
+  test('Archivo demasiado grande sin tamaño indicado', async () => {
+    const estado = cuerpoSinFin();
+    conVersion();
+    regla((p) => p.url.searchParams.get('alt') === 'media', () => new Response(estado.cuerpo));
+    await assert.rejects(cliente().leer('abc'), (e) => ErrorArchivoGrande && e instanceof ErrorArchivoGrande);
+    leidoComoMucho(estado);
+  });
+
+  test('Archivo con un tamaño indicado menor que el real', async () => {
+    const estado = cuerpoSinFin();
+    conVersion();
+    regla((p) => p.url.searchParams.get('alt') === 'media', () => new Response(estado.cuerpo, { headers: { 'Content-Length': '100' } }));
+    await assert.rejects(cliente().leer('abc'), (e) => ErrorArchivoGrande && e instanceof ErrorArchivoGrande);
+    leidoComoMucho(estado);
+  });
+
+  test('Foto demasiado grande sin tamaño indicado', async () => {
+    const estado = cuerpoSinFin();
+    regla(() => true, () => new Response(estado.cuerpo, { headers: { 'Content-Type': 'image/webp' } }));
+    await assert.rejects(cliente().descargarFoto('archivo-foto'), (e) => ErrorFotoNoValida && e instanceof ErrorFotoNoValida);
+    leidoComoMucho(estado);
+  });
+
+  test('Foto con un tamaño indicado menor que el real', async () => {
+    const estado = cuerpoSinFin();
+    regla(() => true, () => new Response(estado.cuerpo, { headers: { 'Content-Type': 'image/jpeg', 'Content-Length': '100' } }));
+    await assert.rejects(cliente().descargarFoto('archivo-foto'), (e) => ErrorFotoNoValida && e instanceof ErrorFotoNoValida);
+    leidoComoMucho(estado);
+  });
+
+  test('un archivo pequeño en trozos se lee entero', async () => {
+    conVersion();
+    const partes = ['{"version":1,', '"productos":[]}'];
+    const cuerpo = new ReadableStream({ pull(c) { const p = partes.shift(); if (p) c.enqueue(new TextEncoder().encode(p)); else c.close(); } });
+    regla((p) => p.url.searchParams.get('alt') === 'media', () => new Response(cuerpo));
+    assert.equal((await cliente().leer('abc')).texto, '{"version":1,"productos":[]}');
+  });
+});

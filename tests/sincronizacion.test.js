@@ -10,7 +10,9 @@ const sincronizacion = await import('../src/js/sincronizacion.js').catch((error)
 });
 const {
   leerArchivo, crearArchivo, fusionar, purgar, planificar, textoEstado, ErrorArchivoNoValido, DIAS_PURGA,
+  prepararArchivo, ErrorListaLlena,
 } = sincronizacion;
+const { PRODUCTOS_MAX, ARCHIVO_MAX_BYTES } = await import('../src/js/constantes.js');
 
 const AHORA = new Date('2026-11-13T12:00:00.000Z');
 
@@ -50,6 +52,17 @@ describe('Archivo de sincronización', () => {
     const { productos, descartados } = leerArchivo(texto);
     assert.deepEqual(productos, [producto('a'), producto('b', { eliminado: true })]);
     assert.equal(descartados, 0);
+  });
+
+  test('Archivo compacto', () => {
+    const texto = crearArchivo([producto('a'), producto('b')], AHORA);
+    assert.ok(!texto.includes('\n'), 'sin saltos de línea');
+    assert.equal(texto, JSON.stringify(JSON.parse(texto)), 'sin sangría ni espacios de formato');
+  });
+
+  test('Archivo anterior con sangría', () => {
+    const texto = JSON.stringify({ version: 1, ultimaActualizacion: AHORA.toISOString(), productos: [producto('a')] }, null, 2);
+    assert.deepEqual(leerArchivo(texto, AHORA).productos, [producto('a')]);
   });
 
   test('Archivo dañado', () => {
@@ -392,5 +405,34 @@ describe('Límites del archivo de Drive', () => {
     const { productos, descartados } = leerArchivo(archivoCon([producto('a'), producto('b', { notas: 'n'.repeat(5000) })]), AHORA);
     assert.deepEqual(ids(productos), ['a']);
     assert.equal(descartados, 1);
+  });
+});
+
+// Límites de la lista que se va a guardar y subir (drive-sync, "Tamaño máximo del
+// archivo de Drive"). Comprobación pura antes de escribir.
+describe('Lista a escribir dentro de los límites', () => {
+  const muchos = (n, cambios = {}) => Array.from({ length: n }, (_, i) => producto(`p${String(i).padStart(5, '0')}`, cambios));
+
+  test('La lista junta cabe: con el máximo de productos devuelve el archivo', () => {
+    const lista = [...muchos(PRODUCTOS_MAX - 1), producto('baja', { eliminado: true })];
+    const texto = prepararArchivo(lista, AHORA);
+    assert.equal(texto, crearArchivo(lista, AHORA));
+    assert.equal(JSON.parse(texto).productos.length, PRODUCTOS_MAX);
+  });
+
+  test('La lista junta pasaría del máximo', () => {
+    assert.throws(() => prepararArchivo(muchos(PRODUCTOS_MAX + 1), AHORA), (e) => ErrorListaLlena && e instanceof ErrorListaLlena);
+  });
+
+  test('Las bajas cuentan para el máximo', () => {
+    const lista = [...muchos(PRODUCTOS_MAX), producto('baja', { eliminado: true })];
+    assert.throws(() => prepararArchivo(lista, AHORA), (e) => ErrorListaLlena && e instanceof ErrorListaLlena);
+  });
+
+  test('Archivo resultante demasiado grande', () => {
+    // Pocos productos, pero el texto supera ARCHIVO_MAX_BYTES (los bytes cuentan en UTF-8).
+    const notas = 'ñ'.repeat(Math.ceil(ARCHIVO_MAX_BYTES / 4));
+    const lista = [producto('a', { notas }), producto('b', { notas }), producto('c', { notas })];
+    assert.throws(() => prepararArchivo(lista, AHORA), (e) => ErrorListaLlena && e instanceof ErrorListaLlena);
   });
 });

@@ -841,3 +841,42 @@ prueba('Se elige otra cuenta al renovar: error sin sincronizar', async () => {
   igual(estado().error, 'La cuenta de Google elegida no es la de la sesión. Vuelve a intentarlo con a@example.com.');
   igualProfundo(driveFalso.llamadas, [], 'no se toca Drive');
 });
+
+// ---------- Lista a escribir dentro de los límites (limites-sincronizacion-y-marco) ----------
+
+const LISTA_LLENA = 'La lista ha llegado al máximo de productos que admite la app. No se ha cambiado nada.';
+const varios = (prefijo, n) => Array.from({ length: n }, (_, i) => producto(`${prefijo}${String(i).padStart(5, '0')}`));
+const cuantosLocales = async () => (await storage.listarTodos()).length;
+
+prueba('La lista junta pasaría del máximo', async () => {
+  await storage.guardarSincronizados(varios('local-', 10));
+  driveFalso.poner('lista', varios('remoto-', 2000));
+  prefs.escribir({ archivoId: 'lista', pendiente: true, ultima: null });
+  await crear().sincronizar();
+  igual(sincronizador.MENSAJES?.listaLlena, LISTA_LLENA, 'mensaje de lista llena');
+  igual(estado().fase, 'error');
+  igual(estado().error, LISTA_LLENA);
+  igual(driveFalso.llamadas.includes('escribir'), false, 'Drive no cambia');
+  igual(driveFalso.productos('lista').length, 2000);
+  igual(await cuantosLocales(), 10, 'el dispositivo no cambia');
+  igual(estado().pendiente, true, 'siguen los cambios pendientes');
+});
+
+prueba('La lista junta cabe', async () => {
+  await storage.guardarSincronizados(varios('local-', 10));
+  driveFalso.poner('lista', varios('remoto-', 1990));
+  prefs.escribir({ archivoId: 'lista', pendiente: true, ultima: null });
+  await crear().sincronizar();
+  igual(estado().texto, 'Sincronizado');
+  igual(driveFalso.productos('lista').length, 2000);
+  igual(await cuantosLocales(), 2000);
+});
+
+prueba('Crear la lista con demasiados productos', async () => {
+  await storage.guardarSincronizados(varios('local-', 2001));
+  respuestaConfirmar = true;
+  await crear().sincronizar({ aPeticion: true });
+  igual(confirmaciones.length, 1, 'se preguntó si crear la lista');
+  igual(driveFalso.llamadas.includes('crearLista'), false, 'no se crea el archivo');
+  igual(estado().error, LISTA_LLENA);
+});

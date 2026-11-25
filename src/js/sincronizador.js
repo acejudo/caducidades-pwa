@@ -12,7 +12,7 @@ import {
   crearClienteDrive, ErrorRed, ErrorToken, ErrorNoDisponible, ErrorArchivoGrande,
 } from './drive.js';
 import {
-  leerArchivo, crearArchivo, purgar, planificar, planificarFotos, textoEstado, ErrorArchivoNoValido,
+  leerArchivo, prepararArchivo, purgar, planificar, planificarFotos, textoEstado, ErrorArchivoNoValido, ErrorListaLlena,
 } from './sincronizacion.js';
 import { confirmar as confirmarDialogo } from './dialogo.js';
 
@@ -24,6 +24,8 @@ export const MENSAJES = Object.freeze({
   red: 'No se pudo conectar con Google Drive. Comprueba la conexión.',
   drive: 'Google Drive no respondió como se esperaba. Inténtalo más tarde.',
   archivo: 'El archivo de la lista en Drive no es válido. No se ha cambiado nada.',
+  // Las bajas cuentan hasta la purga: no se aconseja eliminar productos (design.md §2).
+  listaLlena: 'La lista ha llegado al máximo de productos que admite la app. No se ha cambiado nada.',
   permiso: 'Hace falta permitir el acceso a Google Drive.',
   // Se completa con el email de la sesión (user-auth, "Renovación con la misma cuenta").
   otraCuenta: 'La cuenta de Google elegida no es la de la sesión.',
@@ -58,6 +60,7 @@ export function preferenciasLocales(clave = CLAVE_PREFERENCIAS) {
 function mensajeDe(error) {
   if (error instanceof ErrorRed) return MENSAJES.red;
   if (error instanceof ErrorArchivoNoValido || error instanceof ErrorArchivoGrande) return MENSAJES.archivo;
+  if (error instanceof ErrorListaLlena) return MENSAJES.listaLlena;
   return MENSAJES.drive;
 }
 
@@ -166,7 +169,8 @@ export function crearSincronizador({
     });
     if (!crear) throw new SinLista();
     const locales = await almacen.listarTodos();
-    const { id } = await drive.crearLista(crearArchivo(purgar(locales, ahora()), ahora()));
+    // Si supera los límites, ErrorListaLlena y no se crea el archivo.
+    const { id } = await drive.crearLista(prepararArchivo(purgar(locales, ahora()), ahora()));
     guardar({ archivoId: id, carpetaId: null });
     return id;
   }
@@ -178,11 +182,14 @@ export function crearSincronizador({
       const { texto, version } = await drive.leer(id);
       const { productos: remotos, corregidos } = leerArchivo(texto, ahora());
       const plan = planificar(await almacen.listarTodos(), remotos, ahora());
+      // Antes de tocar nada: si la lista junta supera los límites, ErrorListaLlena y no
+      // cambian ni el dispositivo ni Drive. El mismo texto es el que se sube.
+      const archivo = prepararArchivo(plan.resultado, ahora());
       if (plan.cambiaLocal) await almacen.guardarSincronizados(plan.resultado, plan.idsPurgados);
       // Con fechas futuras corregidas, Drive aún tiene las originales: hay que subir.
       if (!plan.hayQueSubir && corregidos === 0) return;
       if ((await drive.version(id)) !== version) continue;
-      await drive.escribir(id, crearArchivo(plan.resultado, ahora()));
+      await drive.escribir(id, archivo);
       return;
     }
     throw new Error('El archivo de Drive cambia continuamente');

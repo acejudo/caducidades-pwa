@@ -85,6 +85,43 @@ function multipart(metadatos, tipo, contenido) {
   };
 }
 
+// Lee el cuerpo de la respuesta por partes y corta en cuanto pasa de `maximo` bytes, aunque
+// Drive no indique el tamaño o indique uno menor (drive-sync, "Tamaño máximo del archivo de
+// Drive" y "Descarga de fotos"). Si ya lo indica la cabecera, no se lee nada.
+async function leerHasta(respuesta, maximo, crearError) {
+  if (Number(respuesta.headers.get('content-length')) > maximo) {
+    respuesta.body?.cancel().catch(() => {});
+    throw crearError();
+  }
+  if (!respuesta.body) return new Uint8Array(0);
+  if (typeof respuesta.body.getReader !== 'function') {
+    // Navegador sin lectura por partes: se lee entero y se comprueba después.
+    const entero = new Uint8Array(await respuesta.arrayBuffer());
+    if (entero.byteLength > maximo) throw crearError();
+    return entero;
+  }
+  const lector = respuesta.body.getReader();
+  const trozos = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await lector.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maximo) {
+      lector.cancel().catch(() => {});
+      throw crearError();
+    }
+    trozos.push(value);
+  }
+  const datos = new Uint8Array(total);
+  let posicion = 0;
+  for (const trozo of trozos) {
+    datos.set(trozo, posicion);
+    posicion += trozo.byteLength;
+  }
+  return datos;
+}
+
 // `token()` devuelve el access token vigente. `fetch` se sustituye en las pruebas.
 export function crearClienteDrive({ token, fetch = globalThis.fetch.bind(globalThis) }) {
   // Hace la petición y traduce los errores. `deArchivo`: un 403 significa que se ha
@@ -136,16 +173,11 @@ export function crearClienteDrive({ token, fetch = globalThis.fetch.bind(globalT
 
     // La versión se lee antes que el contenido: si el archivo cambia en medio, la versión
     // anotada es la antigua y la comprobación antes de subir lo detecta (design.md §5).
-    // Más de ARCHIVO_MAX_BYTES: ErrorArchivoGrande (si la cabecera ya lo indica, no se lee).
+    // Más de ARCHIVO_MAX_BYTES: ErrorArchivoGrande, cortando la descarga al pasar el tope.
     async leer(id) {
       const versionLeida = await version(id);
       const respuesta = await pedir(url(`${API}/${encodeURIComponent(id)}`, { alt: 'media' }), {}, { deArchivo: true });
-      if (Number(respuesta.headers.get('content-length')) > ARCHIVO_MAX_BYTES) {
-        respuesta.body?.cancel().catch(() => {});
-        throw new ErrorArchivoGrande();
-      }
-      const datos = await respuesta.arrayBuffer();
-      if (datos.byteLength > ARCHIVO_MAX_BYTES) throw new ErrorArchivoGrande();
+      const datos = await leerHasta(respuesta, ARCHIVO_MAX_BYTES, () => new ErrorArchivoGrande());
       return { texto: new TextDecoder().decode(datos), version: versionLeida };
     },
 
@@ -224,22 +256,16 @@ export function crearClienteDrive({ token, fetch = globalThis.fetch.bind(globalT
       return id;
     },
 
-    // Descarga una foto. Solo acepta WebP o JPEG de FOTO_MAX_BYTES como máximo: si la
-    // cabecera ya indica más, no se lee el cuerpo.
+    // Descarga una foto. Solo acepta WebP o JPEG de FOTO_MAX_BYTES como máximo, cortando la
+    // descarga al pasar el tope.
     async descargarFoto(id) {
       const respuesta = await pedir(url(`${API}/${encodeURIComponent(id)}`, { alt: 'media' }), {}, { deArchivo: true });
       const tipo = (respuesta.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
-      const cancelar = () => respuesta.body?.cancel().catch(() => {});
       if (!TIPOS_FOTO_REAL.includes(tipo)) {
-        cancelar();
+        respuesta.body?.cancel().catch(() => {});
         throw new ErrorFotoNoValida(`tipo ${tipo || 'desconocido'}`);
       }
-      if (Number(respuesta.headers.get('content-length')) > FOTO_MAX_BYTES) {
-        cancelar();
-        throw new ErrorFotoNoValida('demasiado grande');
-      }
-      const datos = await respuesta.arrayBuffer();
-      if (datos.byteLength > FOTO_MAX_BYTES) throw new ErrorFotoNoValida('demasiado grande');
+      const datos = await leerHasta(respuesta, FOTO_MAX_BYTES, () => new ErrorFotoNoValida('demasiado grande'));
       return new Blob([datos], { type: tipo });
     },
 

@@ -3,7 +3,7 @@
 // Sin DOM, sin red ni almacenamiento: se prueba en Node (tests/sincronizacion.test.js).
 
 import { normalizarProducto, validarProducto, esNombreFotoReal } from './productos.js';
-import { PRODUCTOS_MAX, MARGEN_FUTURO_MS } from './constantes.js';
+import { PRODUCTOS_MAX, MARGEN_FUTURO_MS, ARCHIVO_MAX_BYTES } from './constantes.js';
 
 export const VERSION_ARCHIVO = 1;
 // Las bajas con más días que estos se quitan del dispositivo y del archivo.
@@ -15,6 +15,14 @@ export class ErrorArchivoNoValido extends Error {
     super(mensaje);
     this.name = 'ErrorArchivoNoValido';
     this.causa = causa;
+  }
+}
+
+// La lista que se iba a guardar y subir supera PRODUCTOS_MAX o ARCHIVO_MAX_BYTES.
+export class ErrorListaLlena extends Error {
+  constructor() {
+    super('La lista supera el máximo de productos o de tamaño');
+    this.name = 'ErrorListaLlena';
   }
 }
 
@@ -63,14 +71,25 @@ export function leerArchivo(texto, ahora = new Date()) {
 }
 
 // Texto del archivo con todos los productos (también los eliminados), ordenados por id
-// para que el contenido no dependa del orden de llegada.
+// para que el contenido no dependa del orden de llegada. Compacto, sin sangría: ocupa
+// menos y la lectura acepta igual los archivos antiguos con sangría.
 export function crearArchivo(productos, ahora = new Date()) {
   const ordenados = [...productos].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return JSON.stringify({
     version: VERSION_ARCHIVO,
     ultimaActualizacion: ahora.toISOString(),
     productos: ordenados,
-  }, null, 2);
+  });
+}
+
+// Texto del archivo listo para guardar y subir, con los mismos límites que se exigen al
+// leerlo: si la lista los supera, lanza ErrorListaLlena y no se escribe nada (drive-sync,
+// "Tamaño máximo del archivo de Drive").
+export function prepararArchivo(productos, ahora = new Date()) {
+  if (productos.length > PRODUCTOS_MAX) throw new ErrorListaLlena();
+  const texto = crearArchivo(productos, ahora);
+  if (new TextEncoder().encode(texto).byteLength > ARCHIVO_MAX_BYTES) throw new ErrorListaLlena();
+  return texto;
 }
 
 // Versión que gana entre dos del mismo producto: el `actualizado` más reciente. Si

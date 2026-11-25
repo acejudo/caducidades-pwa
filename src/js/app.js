@@ -1,28 +1,50 @@
 // Punto de entrada: registra el Service Worker, las rutas y el control de acceso.
 
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js').catch((error) => {
-    console.error('No se pudo registrar el Service Worker:', error);
+// Dentro de un marco de otra página la app no arranca (pwa-shell, "Solo en su propia
+// ventana"): ni Service Worker, ni pantallas, ni Google Sign-In; solo un aviso con un
+// enlace para abrirla fuera del marco.
+if (enMarco()) {
+  mostrarAviso('Caducidades', 'Esta app solo funciona en su propia ventana.', {
+    texto: 'Abrir Caducidades',
+    href: location.href,
   });
+} else {
+  await iniciarApp();
 }
 
-// Los módulos que dependen de js/config.local.js se cargan de forma dinámica para
-// mostrar un aviso legible si falta ese archivo, en lugar de una pantalla en blanco.
-let router, ui, auth;
-try {
-  [router, ui, auth] = await Promise.all([
-    import('./router.js'),
-    import('./ui.js'),
-    import('./auth.js'),
-  ]);
-} catch (error) {
-  console.error('No se pudo cargar la configuración:', error);
-  mostrarFaltaConfiguracion();
+function enMarco() {
+  try {
+    return window.top !== window.self;
+  } catch {
+    return true;
+  }
 }
 
-if (router) arrancar();
+async function iniciarApp() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch((error) => {
+      console.error('No se pudo registrar el Service Worker:', error);
+    });
+  }
 
-async function arrancar() {
+  // Los módulos que dependen de js/config.local.js se cargan de forma dinámica para
+  // mostrar un aviso legible si falta ese archivo, en lugar de una pantalla en blanco.
+  let modulos;
+  try {
+    modulos = await Promise.all([
+      import('./router.js'),
+      import('./ui.js'),
+      import('./auth.js'),
+    ]);
+  } catch (error) {
+    console.error('No se pudo cargar la configuración:', error);
+    mostrarAviso('Falta la configuración', 'Falta src/js/config.local.js. Genéralo con scripts/generar-config-local.mjs (ver README.md).');
+    return;
+  }
+  await arrancar(...modulos);
+}
+
+async function arrancar(router, ui, auth) {
   const { registrar, setGuard, iniciar } = router;
   const { mostrar, pantallas, iniciarSincronizacion } = ui;
   const { sesionActual, revalidarSesion } = auth;
@@ -55,16 +77,26 @@ async function arrancar() {
   iniciar(mostrar);
 }
 
-function mostrarFaltaConfiguracion() {
+// Aviso a pantalla completa en lugar de la app, sin estilos ni scripts en línea (CSP).
+function mostrarAviso(tituloTexto, textoAviso, enlace = null) {
   const contenido = document.getElementById('contenido');
   const aviso = document.createElement('section');
   aviso.className = 'marcador';
   const titulo = document.createElement('h1');
   titulo.className = 'cabecera__titulo';
-  titulo.textContent = 'Falta la configuración';
+  titulo.textContent = tituloTexto;
   const texto = document.createElement('p');
   texto.className = 'marcador__nota';
-  texto.textContent = 'Falta src/js/config.local.js. Genéralo con scripts/generar-config-local.mjs (ver README.md).';
+  texto.textContent = textoAviso;
   aviso.append(titulo, texto);
+  if (enlace) {
+    const a = document.createElement('a');
+    a.className = 'btn btn--primario btn--bloque';
+    a.href = enlace.href;
+    a.target = '_top';
+    a.rel = 'noopener';
+    a.textContent = enlace.texto;
+    aviso.append(a);
+  }
   contenido.replaceChildren(aviso);
 }
