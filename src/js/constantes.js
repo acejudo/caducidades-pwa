@@ -29,3 +29,8 @@ export const PRODUCTOS_MAX = 2000;
 export const ARCHIVO_MAX_BYTES = 5 * 1024 * 1024;
 // Un `actualizado` remoto posterior a ahora + este margen se recorta a ahora.
 export const MARGEN_FUTURO_MS = 86_400_000;
+
+// Cantidad máxima de un producto (product-model, "Validación de un producto").
+export const CANTIDAD_MAX = 9999;
+// Archivos que se leen como máximo de la carpeta de fotos de Drive en cada sincronización.
+export const FOTOS_LISTADO_MAX = PRODUCTOS_MAX;

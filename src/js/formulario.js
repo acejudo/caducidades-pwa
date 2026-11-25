@@ -5,7 +5,7 @@
 import {
   obtenerProducto, crearProducto, actualizarProducto, eliminarProducto, guardarFoto, obtenerFoto, ErrorLimiteProductos,
 } from './storage.js';
-import { CATEGORIAS, UNIDADES, NOTAS_MAX, PRODUCTOS_MAX } from './constantes.js';
+import { CATEGORIAS, UNIDADES, NOTAS_MAX, PRODUCTOS_MAX, CANTIDAD_MAX } from './constantes.js';
 import { ErrorValidacion } from './productos.js';
 import { ICONOS } from './iconos.js';
 import { volver, reemplazar } from './router.js';
@@ -54,12 +54,13 @@ function escribirCantidad(numero) {
   return String(Math.round(numero * 100) / 100).replace('.', ',');
 }
 
-// Botones − y +: + suma 1 (o pone 1 si no hay un número); − resta 1 y queda
-// desactivado en 1 o menos (design.md §2).
+// Botones − y +: + suma 1 (o pone 1 si no hay un número) y queda desactivado si pasaría de
+// CANTIDAD_MAX; − resta 1 y queda desactivado en 1 o menos (design.md §2).
 function activarCantidad({ cantidad }, { restar, sumar }) {
   const actualizar = () => {
     const n = leerCantidad(cantidad.value);
     restar.disabled = !(n > 1);
+    sumar.disabled = Number.isFinite(n) && n + 1 > CANTIDAD_MAX;
   };
   const cambiar = (delta) => {
     const n = leerCantidad(cantidad.value);

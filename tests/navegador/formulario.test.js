@@ -183,6 +183,21 @@ prueba('Mínimo', async () => {
   igual(restar(raiz).disabled, false, 'con 1,5');
 });
 
+prueba('Máximo', async () => {
+  const raiz = await montar();
+  escribir(raiz, 'cantidad', '9999');
+  igual(sumar(raiz).disabled, true, 'con 9999');
+  restar(raiz).click();
+  igual(control(raiz, 'cantidad').value, '9998');
+  igual(sumar(raiz).disabled, false, 'con 9998');
+  escribir(raiz, 'cantidad', '9998,5');
+  igual(sumar(raiz).disabled, true, 'con 9998,5');
+  restar(raiz).click();
+  igual(sumar(raiz).disabled, false, 'con 9997,5');
+  escribir(raiz, 'cantidad', 'abc');
+  igual(sumar(raiz).disabled, false, 'con un texto no válido');
+});
+
 prueba('botones de cantidad accesibles', async () => {
   const raiz = await montar();
   igual(restar(raiz).getAttribute('aria-label'), 'Restar uno');
@@ -275,6 +290,21 @@ prueba('Guardar sin obligatorios', async () => {
   igual((await storage.listarProductos()).length, 0, 'no se guarda nada');
   igual(navegaciones.length, 0, 'no se navega');
   igual(guardar(raiz).disabled, false);
+});
+
+prueba('Cantidad escrita por encima del máximo', async () => {
+  const raiz = await montar();
+  escribir(raiz, 'nombre', 'Leche');
+  escribir(raiz, 'fechaCaducidad', '2026-12-01');
+  escribir(raiz, 'cantidad', '10000');
+  guardar(raiz).click();
+  await esperarA(() => visible(errorDe(raiz, 'cantidad')));
+  igual(errorDe(raiz, 'cantidad').textContent, 'La cantidad no puede ser mayor que 9999');
+  igual(control(raiz, 'cantidad').getAttribute('aria-invalid'), 'true');
+  const enfocado = document.activeElement;
+  igual(`${enfocado?.tagName}[${enfocado?.name ?? enfocado?.className}]`, 'INPUT[cantidad]', 'el foco va a la cantidad');
+  igual((await storage.listarProductos()).length, 0, 'no se guarda nada');
+  igual(navegaciones.length, 0, 'no se navega');
 });
 
 prueba('Corregir un campo', async () => {

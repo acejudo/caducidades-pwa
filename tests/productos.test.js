@@ -460,3 +460,36 @@ describe('product-model: longitudes máximas', () => {
     assert.deepEqual(camposConError({ unidad: 'u'.repeat(20) }), []);
   });
 });
+
+describe('product-model: cantidad máxima', () => {
+  test('Cantidad en el máximo', () => {
+    for (const cantidad of [9999, 9998.5, '9999', '9998,5']) {
+      const p = nuevoProducto({ ...MINIMO, cantidad });
+      assert.equal(p.cantidad, Number(String(cantidad).replace(',', '.')), String(cantidad));
+    }
+  });
+
+  test('Cantidad por encima del máximo', () => {
+    for (const cantidad of [10000, 9999.5, '10000']) {
+      const errores = validarProducto(normalizarProducto({ ...MINIMO, cantidad }));
+      assert.deepEqual(Object.keys(errores), ['cantidad'], String(cantidad));
+      assert.equal(errores.cantidad, 'La cantidad no puede ser mayor que 9999');
+      assert.throws(() => nuevoProducto({ ...MINIMO, cantidad }), (e) => 'cantidad' in e.campos);
+    }
+  });
+});
+
+describe('identificador de producto', () => {
+  const UUID = '3f2b8c1e-9a4d-4e6f-8b2a-1c5d7e9f0a3b';
+
+  test('esIdProducto acepta un UUID en minúsculas', () => {
+    assert.equal(productos.esIdProducto?.(UUID), true);
+    assert.equal(productos.esIdProducto?.(nuevoProducto(MINIMO).id), true, 'los que genera la app');
+  });
+
+  test('esIdProducto rechaza lo que no es un UUID en minúsculas', () => {
+    for (const valor of ['nuevo', UUID.toUpperCase(), `{${UUID}}`, ` ${UUID}`, `${UUID}.webp`, '', null, 42]) {
+      assert.equal(productos.esIdProducto?.(valor), false, String(valor));
+    }
+  });
+});

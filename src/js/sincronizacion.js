@@ -2,8 +2,9 @@
 // purgar y el texto del estado. Specs: openspec/specs/drive-sync y sync-status.
 // Sin DOM, sin red ni almacenamiento: se prueba en Node (tests/sincronizacion.test.js).
 
-import { normalizarProducto, validarProducto, esNombreFotoReal } from './productos.js';
+import { normalizarProducto, validarProducto, esNombreFotoReal, esIdProducto } from './productos.js';
 import { PRODUCTOS_MAX, MARGEN_FUTURO_MS, ARCHIVO_MAX_BYTES } from './constantes.js';
+import { buscarFoto } from './fotos.js';
 
 export const VERSION_ARCHIVO = 1;
 // Las bajas con más días que estos se quitan del dispositivo y del archivo.
@@ -26,7 +27,10 @@ export class ErrorListaLlena extends Error {
   }
 }
 
-const esFechaHora = (valor) => typeof valor === 'string' && !Number.isNaN(Date.parse(valor));
+// Fecha y hora ISO 8601 completa y con zona: el mismo instante en cualquier dispositivo
+// (drive-sync, "Contenido no válido en Drive").
+const FECHA_HORA = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?(Z|[+-]\d{2}:\d{2})$/;
+const esFechaHora = (valor) => typeof valor === 'string' && FECHA_HORA.test(valor) && !Number.isNaN(Date.parse(valor));
 
 // Producto del archivo listo para guardar, o null si no cumple el modelo. Un `actualizado`
 // demasiado en el futuro se recorta a `ahora` y se marca con `corregido`: si no, esa
@@ -35,13 +39,18 @@ const esFechaHora = (valor) => typeof valor === 'string' && !Number.isNaN(Date.p
 function productoDelArchivo(datos, ahora) {
   if (!datos || typeof datos !== 'object') return null;
   const { id, eliminado, actualizado } = datos;
-  if (typeof id !== 'string' || !id || typeof eliminado !== 'boolean' || !esFechaHora(actualizado)) return null;
+  if (!esIdProducto(id) || typeof eliminado !== 'boolean' || !esFechaHora(actualizado)) return null;
   const campos = normalizarProducto(datos);
+  // Una foto predeterminada que no está en el catálogo deja el producto sin foto, en vez
+  // de descartarlo (drive-sync, "Foto predeterminada desconocida en el archivo").
+  const fotoDesconocida = campos.foto.tipo === 'predeterminada' && !buscarFoto(campos.foto.valor);
+  if (fotoDesconocida) campos.foto = { tipo: 'ninguna', valor: null };
   if (Object.keys(validarProducto(campos)).length > 0) return null;
-  if (Date.parse(actualizado) > ahora.getTime() + MARGEN_FUTURO_MS) {
-    return { producto: { id, ...campos, eliminado, actualizado: ahora.toISOString() }, corregido: true };
-  }
-  return { producto: { id, ...campos, eliminado, actualizado }, corregido: false };
+  const futuro = Date.parse(actualizado) > ahora.getTime() + MARGEN_FUTURO_MS;
+  return {
+    producto: { id, ...campos, eliminado, actualizado: futuro ? ahora.toISOString() : actualizado },
+    corregido: futuro || fotoDesconocida,
+  };
 }
 
 // Texto de caducidades.json → { productos, descartados, corregidos }. Lanza
@@ -117,9 +126,11 @@ export function purgar(productos, ahora = new Date(), dias = DIAS_PURGA) {
   return productos.filter((p) => !(p.eliminado && Date.parse(p.actualizado) < limite));
 }
 
-// Huella de una lista: qué versión de cada producto contiene.
+// Huella de una lista: qué versión de cada producto contiene. Cada versión se escribe como
+// una tupla JSON, que escapa sus textos: dos listas distintas nunca dan la misma huella
+// (drive-sync, "Detección de cambios en la lista").
 function huella(productos) {
-  return productos.map((p) => `${p.id}@${p.actualizado}@${p.eliminado}`).sort().join('|');
+  return `[${productos.map((p) => JSON.stringify([p.id, p.actualizado, p.eliminado])).sort().join(',')}]`;
 }
 
 // Qué hay que hacer en una sincronización: el resultado de fusionar y purgar, si cambia

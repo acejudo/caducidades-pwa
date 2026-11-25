@@ -4,6 +4,7 @@
 
 import {
   DRIVE_ARCHIVO, DRIVE_CARPETA, DRIVE_CARPETA_FOTOS, FOTO_MAX_BYTES, TIPOS_FOTO_REAL, ARCHIVO_MAX_BYTES,
+  FOTOS_LISTADO_MAX,
 } from './constantes.js';
 
 const API = 'https://www.googleapis.com/drive/v3/files';
@@ -229,19 +230,23 @@ export function crearClienteDrive({ token, fetch = globalThis.fetch.bind(globalT
       return id;
     },
 
-    // Todos los archivos de la carpeta de fotos (fuera de la papelera), página a página.
+    // Los archivos de la carpeta de fotos (fuera de la papelera), página a página y de los
+    // más recientes a los más antiguos, hasta FOTOS_LISTADO_MAX (drive-sync, "Tope del
+    // listado de fotos").
     async listarFotos(carpetaFotosId) {
       const q = `${literal(carpetaFotosId)} in parents and trashed = false and mimeType != '${TIPO_CARPETA}'`;
       const fotos = [];
       let pageToken = null;
       do {
-        const parametros = { q, fields: 'nextPageToken,files(id,name,createdTime,ownedByMe)', pageSize: '1000' };
+        const parametros = {
+          q, fields: 'nextPageToken,files(id,name,createdTime,ownedByMe)', pageSize: '1000', orderBy: 'createdTime desc',
+        };
         if (pageToken) parametros.pageToken = pageToken;
         const { files = [], nextPageToken } = await pedirJson(url(API, parametros));
         fotos.push(...files);
         pageToken = nextPageToken ?? null;
-      } while (pageToken);
-      return fotos;
+      } while (pageToken && fotos.length < FOTOS_LISTADO_MAX);
+      return fotos.slice(0, FOTOS_LISTADO_MAX);
     },
 
     // Sube la imagen tal cual con su nombre; devuelve el id del archivo.

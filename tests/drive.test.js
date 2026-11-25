@@ -398,3 +398,33 @@ describe('Descargas con tope aunque no se indique el tamaño', () => {
     assert.equal((await cliente().leer('abc')).texto, '{"version":1,"productos":[]}');
   });
 });
+
+describe('Tope del listado de fotos', () => {
+  const pagina = (desde, n, siguiente) => json({
+    files: Array.from({ length: n }, (_, i) => ({ id: `f${desde + i}`, name: `${desde + i}.webp`, createdTime: '2026-11-01T00:00:00Z', ownedByMe: true })),
+    ...(siguiente ? { nextPageToken: siguiente } : {}),
+  });
+
+  test('Carpeta con más fotos que el tope', async () => {
+    regla((p) => !p.url.searchParams.get('pageToken'), () => pagina(0, 1000, 'p2'));
+    regla((p) => p.url.searchParams.get('pageToken') === 'p2', () => pagina(1000, 1000, 'p3'));
+    regla((p) => p.url.searchParams.get('pageToken') === 'p3', () => pagina(2000, 500));
+    const fotos = await cliente().listarFotos('fotos-1');
+    assert.equal(fotos.length, 2000);
+    assert.equal(peticiones.length, 2, 'no pide la tercera página');
+  });
+
+  test('una página que pasa del tope se recorta', async () => {
+    regla((p) => !p.url.searchParams.get('pageToken'), () => pagina(0, 1500, 'p2'));
+    regla((p) => p.url.searchParams.get('pageToken') === 'p2', () => pagina(1500, 1000));
+    const fotos = await cliente().listarFotos('fotos-1');
+    assert.equal(fotos.length, 2000);
+    assert.equal(fotos.at(-1).id, 'f1999');
+  });
+
+  test('el listado pide primero las fotos más recientes', async () => {
+    regla(() => true, () => json({ files: [] }));
+    await cliente().listarFotos('fotos-1');
+    assert.equal(peticiones[0].url.searchParams.get('orderBy'), 'createdTime desc');
+  });
+});

@@ -18,3 +18,11 @@ test('límites de datos (endurecimiento-seguridad)', () => {
   assert.equal(constantes.ARCHIVO_MAX_BYTES, 5 * 1024 * 1024);
   assert.equal(constantes.MARGEN_FUTURO_MS, 86_400_000);
 });
+
+test('cantidad máxima (validacion-datos-drive)', () => {
+  assert.equal(constantes.CANTIDAD_MAX, 9999);
+});
+
+test('tope del listado de fotos (validacion-datos-drive)', () => {
+  assert.equal(constantes.FOTOS_LISTADO_MAX, constantes.PRODUCTOS_MAX);
+});

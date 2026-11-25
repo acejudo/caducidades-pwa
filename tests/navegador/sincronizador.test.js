@@ -2,6 +2,7 @@
 // Spec: drive-sync (y los estados de sync-status). Usan el almacenamiento real sobre la
 // base de datos de pruebas y dobles de Drive, auth, red, preferencias y temporizador.
 import { prueba, antesDeCada, igual, igualProfundo, verdadero } from './runner.js';
+import { uuid } from '../uuid-prueba.js';
 
 const storage = await import('../../src/js/storage.js').catch(() => ({}));
 const sincronizacion = await import('../../src/js/sincronizacion.js').catch(() => ({}));
@@ -25,7 +26,7 @@ function borrarBaseDeDatos(nombre) {
 
 function producto(id, cambios = {}) {
   return {
-    id,
+    id: uuid(id),
     nombre: `Producto ${id}`,
     fechaCompra: null,
     fechaCaducidad: '2026-11-30',
@@ -313,7 +314,7 @@ prueba('Gana la edición más reciente', async () => {
   await storage.guardarSincronizados([producto('l', { nombre: 'Leche', cantidad: 2, actualizado: '2026-11-13T10:00:00.000Z' })]);
   driveFalso.poner('lista', [producto('l', { nombre: 'Leche', cantidad: 5, actualizado: '2026-11-13T11:00:00.000Z' })]);
   await crear().sincronizar();
-  igual((await storage.obtenerProducto('l')).cantidad, 5, 'en el dispositivo');
+  igual((await storage.obtenerProducto(uuid('l'))).cantidad, 5, 'en el dispositivo');
   igual(driveFalso.productos('lista')[0].cantidad, 5, 'en Drive');
 });
 
@@ -359,7 +360,7 @@ prueba('Otro dispositivo sube a la vez', async () => {
   });
   await crear().sincronizar();
   const enDrive = driveFalso.productos('lista').map((p) => p.id).sort();
-  igualProfundo(enDrive, ['a', 'h', local.id].sort());
+  igualProfundo(enDrive, [uuid('a'), uuid('h'), local.id].sort());
   igualProfundo(await nombres(), ['Huevos', 'Leche', 'Producto a']);
 });
 
@@ -829,6 +830,20 @@ prueba('Baja con fecha en el futuro: se sube corregida', async () => {
   await crear().sincronizar();
   igual(driveFalso.llamadas.includes('escribir'), true, 'se sube la versión corregida');
   igual(driveFalso.productos('lista')[0].actualizado, AHORA.toISOString());
+  igual(estado().texto, 'Sincronizado');
+});
+
+// ---------- Foto predeterminada desconocida (validacion-datos-drive) ----------
+
+prueba('Foto predeterminada que no está en el catálogo', async () => {
+  driveFalso.poner('lista', [producto('l', { nombre: 'Leche', foto: { tipo: 'predeterminada', valor: 'dragon' } })]);
+  prefs.escribir({ archivoId: 'lista', pendiente: false, ultima: null });
+  await crear().sincronizar();
+  const [local] = await storage.listarTodos();
+  igual(local?.nombre, 'Leche', 'no se descarta');
+  igualProfundo(local?.foto, { tipo: 'ninguna', valor: null }, 'sin foto en el dispositivo');
+  igual(driveFalso.llamadas.includes('escribir'), true, 'se sube la versión corregida sin cambios locales');
+  igualProfundo(driveFalso.productos('lista')[0].foto, { tipo: 'ninguna', valor: null }, 'sin foto en Drive');
   igual(estado().texto, 'Sincronizado');
 });
 

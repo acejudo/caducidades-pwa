@@ -13,12 +13,13 @@ const {
   prepararArchivo, ErrorListaLlena,
 } = sincronizacion;
 const { PRODUCTOS_MAX, ARCHIVO_MAX_BYTES } = await import('../src/js/constantes.js');
+import { uuid, corto } from './uuid-prueba.js';
 
 const AHORA = new Date('2026-11-13T12:00:00.000Z');
 
 function producto(id, cambios = {}) {
   return {
-    id,
+    id: uuid(id),
     nombre: `Producto ${id}`,
     fechaCompra: null,
     fechaCaducidad: '2026-11-30',
@@ -33,8 +34,8 @@ function producto(id, cambios = {}) {
   };
 }
 
-const porId = (lista) => Object.fromEntries(lista.map((p) => [p.id, p]));
-const ids = (lista) => lista.map((p) => p.id).sort();
+const porId = (lista) => Object.fromEntries(lista.map((p) => [corto(p.id), p]));
+const ids = (lista) => lista.map((p) => corto(p.id)).sort();
 const haceDias = (dias) => new Date(AHORA.getTime() - dias * 86_400_000).toISOString();
 
 describe('Archivo de sincronización', () => {
@@ -43,7 +44,7 @@ describe('Archivo de sincronización', () => {
     const archivo = JSON.parse(texto);
     assert.equal(archivo.version, 1);
     assert.equal(archivo.ultimaActualizacion, AHORA.toISOString());
-    assert.deepEqual(archivo.productos.map((p) => p.id), ['a', 'b'], 'ordenados por id: contenido estable');
+    assert.deepEqual(archivo.productos.map((p) => corto(p.id)), ['a', 'b'], 'ordenados por id: contenido estable');
     assert.deepEqual(archivo.productos[1], producto('b', { nombre: 'Pan', eliminado: true }), 'todos los campos');
   });
 
@@ -200,7 +201,7 @@ describe('Planificar una sincronización', () => {
   test('la purga aparece en idsPurgados y en los dos lados', () => {
     const viejo = producto('v', { eliminado: true, actualizado: haceDias(100) });
     const plan = planificar([viejo, producto('a')], [viejo, producto('a')], AHORA);
-    assert.deepEqual(plan.idsPurgados, ['v']);
+    assert.deepEqual(plan.idsPurgados.map(corto), ['v']);
     assert.deepEqual(ids(plan.resultado), ['a']);
     assert.equal(plan.cambiaLocal, true);
     assert.equal(plan.hayQueSubir, true);
@@ -282,6 +283,13 @@ describe('Plan de fotos', () => {
   test('Foto aún no subida: no hay nada que descargar', () => {
     const p = plan({ productos: [conFoto('a', F1)] });
     assert.deepEqual(p.descargar, []);
+  });
+
+  test('Foto fuera del tope: ni se descarga ni se borra', () => {
+    // F1 la usa un producto y F2 ya no se usa, pero ninguna ha entrado en el listado.
+    const p = plan({ productos: [conFoto('a', F1)], remotas: [] });
+    assert.deepEqual(p.descargar, []);
+    assert.deepEqual(p.borrarRemotas, []);
   });
 
   test('Foto cambiada: se borra la antigua en local y en Drive', () => {
@@ -434,5 +442,108 @@ describe('Lista a escribir dentro de los límites', () => {
     const notas = 'ñ'.repeat(Math.ceil(ARCHIVO_MAX_BYTES / 4));
     const lista = [producto('a', { notas }), producto('b', { notas }), producto('c', { notas })];
     assert.throws(() => prepararArchivo(lista, AHORA), (e) => ErrorListaLlena && e instanceof ErrorListaLlena);
+  });
+});
+
+describe('Contenido no válido en Drive: formato estricto', () => {
+  const archivo = (productos) => JSON.stringify({ version: 1, ultimaActualizacion: AHORA.toISOString(), productos });
+
+  test('Id que no es un UUID', () => {
+    const texto = archivo([
+      producto('a'),
+      { ...producto('n'), id: 'nuevo' },
+      { ...producto('m'), id: uuid('m').toUpperCase() },
+      producto('b'),
+    ]);
+    const { productos, descartados } = leerArchivo(texto, AHORA);
+    assert.deepEqual(ids(productos), ['a', 'b']);
+    assert.equal(descartados, 2);
+  });
+
+  test('Fecha de modificación sin zona', () => {
+    const texto = archivo([
+      producto('a'),
+      producto('x', { actualizado: '2026-11-10T10:00:00' }),
+      producto('y', { actualizado: '2026-11-10' }),
+      producto('z', { actualizado: '10 Nov 2026 10:00 GMT' }),
+    ]);
+    const { productos, descartados } = leerArchivo(texto, AHORA);
+    assert.deepEqual(ids(productos), ['a']);
+    assert.equal(descartados, 3);
+  });
+
+  test('Fecha de modificación con desfase', () => {
+    const texto = archivo([
+      producto('a', { actualizado: '2026-11-10T11:00:00+01:00' }),
+      producto('b', { actualizado: '2026-11-10T10:00:00Z' }),
+    ]);
+    const { productos, descartados } = leerArchivo(texto, AHORA);
+    assert.equal(descartados, 0);
+    assert.equal(porId(productos).a.actualizado, '2026-11-10T11:00:00+01:00', 'se conserva tal cual');
+    assert.equal(porId(productos).b.actualizado, '2026-11-10T10:00:00Z');
+  });
+
+  test('fecha de modificación con forma correcta pero inexistente', () => {
+    const { descartados } = leerArchivo(archivo([producto('a', { actualizado: '2026-13-40T10:00:00Z' })]), AHORA);
+    assert.equal(descartados, 1);
+  });
+
+  test('Cantidad por encima del máximo en el archivo', () => {
+    const { productos, descartados } = leerArchivo(archivo([producto('a'), producto('c', { cantidad: 10000 })]), AHORA);
+    assert.deepEqual(ids(productos), ['a']);
+    assert.equal(descartados, 1);
+  });
+});
+
+describe('Foto predeterminada desconocida en el archivo', () => {
+  const archivo = (productos) => JSON.stringify({ version: 1, ultimaActualizacion: AHORA.toISOString(), productos });
+  const predeterminada = (valor) => ({ tipo: 'predeterminada', valor });
+
+  test('Foto predeterminada que no está en el catálogo', () => {
+    const { productos, descartados, corregidos } = leerArchivo(
+      archivo([producto('l', { nombre: 'Leche', foto: predeterminada('dragon') })]), AHORA);
+    assert.equal(descartados, 0, 'no se descarta');
+    assert.deepEqual(productos[0].foto, { tipo: 'ninguna', valor: null });
+    assert.equal(productos[0].nombre, 'Leche');
+    assert.equal(corregidos, 1, 'hay que subir la versión corregida');
+  });
+
+  test('Foto predeterminada del catálogo', () => {
+    const { productos, corregidos } = leerArchivo(
+      archivo([producto('l', { nombre: 'Leche', foto: predeterminada('leche') })]), AHORA);
+    assert.deepEqual(productos[0].foto, predeterminada('leche'));
+    assert.equal(corregidos, 0);
+  });
+
+  test('fecha futura y foto desconocida cuentan un solo corregido', () => {
+    const futura = new Date(AHORA.getTime() + 10 * 86_400_000).toISOString();
+    const { productos, corregidos } = leerArchivo(
+      archivo([producto('l', { actualizado: futura, foto: predeterminada('dragon') })]), AHORA);
+    assert.equal(corregidos, 1);
+    assert.equal(productos[0].actualizado, AHORA.toISOString());
+    assert.deepEqual(productos[0].foto, { tipo: 'ninguna', valor: null });
+  });
+});
+
+describe('Detección de cambios en la lista', () => {
+  test('Listas iguales', () => {
+    const plan = planificar([producto('a'), producto('b')], [producto('b'), producto('a')], AHORA);
+    assert.equal(plan.cambiaLocal, false);
+    assert.equal(plan.hayQueSubir, false);
+  });
+
+  test('Textos con separadores', () => {
+    // planificar recibe listas ya leídas; aquí los textos no pasan por leerArchivo.
+    const t = '2026-11-10T10:00:00.000Z';
+    const viejo = haceDias(100);
+    const locales = [
+      { ...producto('a'), id: 'a', actualizado: t },
+      { ...producto('b'), id: 'b', eliminado: true, actualizado: viejo },
+    ];
+    // Unida con "@" y "|", esta versión da el mismo texto que las dos locales.
+    const remotos = [{ ...producto('a'), id: 'a', eliminado: true, actualizado: `${t}@false|b@${viejo}` }];
+    const plan = planificar(locales, remotos, AHORA);
+    assert.deepEqual(plan.resultado.map((p) => p.id), ['a'], 'gana la remota y la baja antigua se purga');
+    assert.equal(plan.cambiaLocal, true, 'la lista del dispositivo cambia');
   });
 });

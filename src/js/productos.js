@@ -2,7 +2,7 @@
 // Spec: openspec/specs/product-model. Importa solo de constantes.js (nunca de config.js),
 // para poder probarse en Node sin config.local.js.
 
-import { CATEGORIAS, URGENCIA, NOTAS_MAX, UNIDAD_MAX } from './constantes.js';
+import { CATEGORIAS, URGENCIA, NOTAS_MAX, UNIDAD_MAX, CANTIDAD_MAX } from './constantes.js';
 
 export const TIPOS_FOTO = Object.freeze(['predeterminada', 'real', 'ninguna']);
 export const NOMBRE_MAX = 100;
@@ -10,7 +10,15 @@ export const NOMBRE_MAX = 100;
 // Nombre de una foto real: UUID en minúsculas y extensión .webp o .jpg (fotos-reales,
 // design.md §1). Solo con este formato: un caducidades.json manipulado no puede
 // apuntar a otras rutas ni archivos.
-const NOMBRE_FOTO_REAL = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(webp|jpg)$/;
+const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
+const NOMBRE_FOTO_REAL = new RegExp(`^${UUID}\\.(webp|jpg)$`);
+const ID_PRODUCTO = new RegExp(`^${UUID}$`);
+
+// Id de producto: UUID en minúsculas, como los de crypto.randomUUID() (drive-sync,
+// "Contenido no válido en Drive").
+export function esIdProducto(valor) {
+  return typeof valor === 'string' && ID_PRODUCTO.test(valor);
+}
 
 export function esNombreFotoReal(valor) {
   return typeof valor === 'string' && NOMBRE_FOTO_REAL.test(valor);
@@ -98,6 +106,8 @@ export function validarProducto(producto) {
 
   if (typeof producto.cantidad !== 'number' || !Number.isFinite(producto.cantidad) || producto.cantidad <= 0) {
     errores.cantidad = 'La cantidad debe ser un número mayor que 0';
+  } else if (producto.cantidad > CANTIDAD_MAX) {
+    errores.cantidad = `La cantidad no puede ser mayor que ${CANTIDAD_MAX}`;
   }
 
   if (!producto.unidad) errores.unidad = 'La unidad es obligatoria';
