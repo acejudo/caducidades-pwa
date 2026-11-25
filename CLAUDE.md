@@ -60,6 +60,7 @@ Antes de dar una tarea por terminada: `npm test` y `npm run test:navegador` en v
 - Confirmaciones con `confirmar()` de `src/js/dialogo.js`, nunca `window.confirm()`. Los textos siempre con `textContent`/`el()`, nunca `innerHTML`.
 - `index.html` tiene una Content-Security-Policy (`tests/csp.test.js`): nada de scripts ni `<style>` en línea, ni atributos `style="…"` en HTML (`element.style` desde JS sí vale), ni orígenes externos nuevos sin añadirlos a la directiva concreta.
 - `el()` ignora los hijos `null`/`false` (vale `cond && el(...)`), pero `append()` y `replaceChildren()` **los pintan como texto** ("false", "null"). Con ellos, filtra antes (`[...].filter(Boolean)`). Las pruebas de pantalla comprueban que no queda texto suelto.
+- `app.js` no arranca dentro de un `iframe`: solo pinta un aviso con un enlace (pwa-shell, «Solo en su propia ventana»). Para ver la app, ábrela en su propia pestaña o con `captura-app.mjs`. `tests/navegador/marco.test.js` la carga en un iframe del mismo origen para comprobarlo.
 - Contraste: el texto blanco sobre los colores de urgencia o sobre `#EF4444` no llega a 4,5:1. Usa los tokens `--color-urgencia-*-texto`/`-suave` y `--color-peligro`.
 
 **Sincronización con Drive**
@@ -69,7 +70,11 @@ Antes de dar una tarea por terminada: `npm test` y `npm run test:navegador` en v
 - El sincronizador no importa `auth.js`: recibe `auth` (`sesionActual`, `tokenVigente`, `renovarToken`, `olvidarToken`, `esEmailAutorizado`) inyectado. La instancia de la app (`sincronizador`) se crea en `ui.js`.
 - Las constantes de Drive (`DRIVE_SCOPE`, `DRIVE_CARPETA`…) viven en `constantes.js`, no en `config.js`.
 - Cualquier escritura nueva en `storage.js` que haga el usuario debe emitir `cambiosLocales` ('cambio'); lo que llega de Drive se guarda con `guardarSincronizados`, que no avisa y conserva `actualizado`.
+- Todo archivo de lista que se guarda o se sube (al sincronizar o al crear la lista) sale de `prepararArchivo` (`sincronizacion.js`). Aplica los mismos topes que la lectura (`PRODUCTOS_MAX`, `ARCHIVO_MAX_BYTES`) y se llama **antes** de `guardarSincronizados`. Las descargas de `drive.js` pasan por `leerHasta`, que lee por partes y corta al pasar el tope; nunca `arrayBuffer()` directo.
 - Abrir la ventana de Google (renovar el token) solo desde un gesto del usuario.
+
+**Pruebas con streams**
+- Si una prueba comprueba que una descarga se corta (`ReadableStream` con `highWaterMark: 0` y un contador de `pull`), el cuerpo tiene que ser finito, aunque grande. Con uno infinito, el código sin el corte se cuelga en rojo en vez de fallar.
 
 **Pruebas de navegador** (`tests/navegador/`)
 - Imports tolerantes (`await import(...).catch(() => ({}))`), para que en rojo falle cada prueba por separado y no la página entera.
