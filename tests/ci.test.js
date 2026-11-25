@@ -31,20 +31,30 @@ test('el checkout no deja las credenciales en .git/config', () => {
   }
 });
 
-// GitHub puede tardar unos segundos en listar un artefacto recién subido, y deploy-pages
-// falla al instante si no lo encuentra ("Found 0 artifact(s)"): el workflow de Pages espera
-// a que el artefacto aparezca antes de desplegar.
-test('Pages espera a que el artefacto esté disponible antes de desplegar', () => {
+// deploy-pages busca el artefacto recién subido en un servicio de GitHub que a veces tarda
+// segundos en verlo, y entonces falla sin desplegar nada ("Found 0 artifact(s)",
+// actions/deploy-pages#451). El workflow de Pages reintenta el despliegue tras una espera.
+test('Pages reintenta el despliegue si el artefacto aún no aparece', () => {
   const pages = workflows.find(({ nombre }) => nombre === 'pages.yml');
   assert.ok(pages, 'falta pages.yml');
   const { texto } = pages;
-  const subida = texto.search(/uses:\s*actions\/upload-pages-artifact@/);
-  const despliegue = texto.search(/uses:\s*actions\/deploy-pages@/);
-  assert.ok(subida > 0 && despliegue > subida, 'subida antes del despliegue');
-  const entre = texto.slice(subida, despliegue);
-  assert.match(entre, /actions\/runs\/\$\{?GITHUB_RUN_ID\}?\/artifacts/, 'consulta los artefactos de esta ejecución');
-  assert.match(entre, /github-pages/, 'busca el artefacto github-pages');
-  assert.match(entre, /sleep\s+\d+/, 'reintenta con una espera');
-  assert.match(entre, /exit 1/, 'falla con un mensaje si no aparece');
-  assert.match(texto, /^permissions:[\s\S]*?^\s+actions:\s*read\s*$/m, 'permiso para leer los artefactos');
+  // Pasos del job: cada uno empieza por "      - " (6 espacios).
+  const pasos = texto.split(/\r?\n(?= {6}- )/);
+  const despliegues = pasos.filter((p) => /uses:\s*actions\/deploy-pages@/.test(p));
+  assert.ok(despliegues.length >= 3, `al menos 3 intentos de despliegue (hay ${despliegues.length})`);
+  const usos = new Set(despliegues.map((p) => /uses:\s*(\S+)/.exec(p)[1]));
+  assert.equal(usos.size, 1, 'todos los intentos usan la misma versión fijada');
+  despliegues.slice(0, -1).forEach((p, i) => {
+    assert.match(p, /continue-on-error:\s*true/, `el intento ${i + 1} no detiene el job si falla`);
+  });
+  assert.doesNotMatch(despliegues.at(-1), /continue-on-error/, 'el último intento sí hace fallar el job');
+  despliegues.slice(1).forEach((p, i) => {
+    assert.match(p, /if:\s*steps\.[\w-]+\.outcome == 'failure'/, `el intento ${i + 2} solo corre si falló el anterior`);
+  });
+  const esperas = pasos.filter((p) => /run:\s*sleep\s+\d+/.test(p) && /if:\s*steps\.[\w-]+\.outcome == 'failure'/.test(p));
+  assert.ok(esperas.length >= despliegues.length - 1, 'una espera antes de cada reintento');
+  const ids = despliegues.map((p) => /id:\s*([\w-]+)/.exec(p)?.[1]);
+  for (const id of ids) assert.ok(id, 'cada intento tiene id');
+  assert.match(texto, new RegExp(`url:.*${ids.map((id) => `steps\\.${id}\\.outputs\\.page_url`).join('.*')}`), 'la URL del entorno sale del intento que funcionó');
+  assert.doesNotMatch(texto, /^\s+actions:\s*read\s*$/m, 'sin permisos de más');
 });

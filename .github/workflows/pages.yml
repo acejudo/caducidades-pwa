@@ -9,8 +9,6 @@ permissions:
   contents: read
   pages: write
   id-token: write
-  # Solo para comprobar que el artefacto ya está disponible antes de desplegar.
-  actions: read
 
 concurrency:
   group: pages
@@ -21,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.despliegue.outputs.page_url }}
+      url: ${{ steps.despliegue.outputs.page_url || steps.despliegue-2.outputs.page_url || steps.despliegue-3.outputs.page_url }}
     steps:
       # Actions fijadas por SHA (con la versión en el comentario): una etiqueta se puede mover,
       # un SHA no. Para actualizar: git ls-remote --tags https://github.com/actions/<action>.git
@@ -55,23 +53,26 @@ jobs:
         with:
           path: src
 
-      # GitHub puede tardar unos segundos en listar el artefacto recién subido y
-      # deploy-pages falla al instante si no lo encuentra: se espera a que aparezca.
-      - name: Esperar a que el artefacto esté disponible
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          for intento in $(seq 1 30); do
-            n=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts" \
-              --jq '[.artifacts[] | select(.name == "github-pages")] | length')
-            if [ "$n" -gt 0 ]; then
-              echo "Artefacto disponible (intento ${intento})."
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "El artefacto github-pages no aparece tras 60 s." >&2
-          exit 1
-
+      # deploy-pages busca el artefacto en un servicio de GitHub que a veces tarda segundos en
+      # verlo (actions/deploy-pages#451) y entonces falla sin desplegar nada. Se reintenta
+      # tras una espera; solo el último intento hace fallar el job.
       - id: despliegue
+        continue-on-error: true
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+
+      - name: Esperar antes de reintentar el despliegue
+        if: steps.despliegue.outcome == 'failure'
+        run: sleep 15
+
+      - id: despliegue-2
+        if: steps.despliegue.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+
+      - name: Esperar antes del último intento de despliegue
+        if: steps.despliegue-2.outcome == 'failure'
+        run: sleep 45
+
+      - id: despliegue-3
+        if: steps.despliegue-2.outcome == 'failure'
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
