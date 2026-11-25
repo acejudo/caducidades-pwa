@@ -9,6 +9,8 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  # Solo para comprobar que el artefacto ya está disponible antes de desplegar.
+  actions: read
 
 concurrency:
   group: pages
@@ -52,6 +54,24 @@ jobs:
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: src
+
+      # GitHub puede tardar unos segundos en listar el artefacto recién subido y
+      # deploy-pages falla al instante si no lo encuentra: se espera a que aparezca.
+      - name: Esperar a que el artefacto esté disponible
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for intento in $(seq 1 30); do
+            n=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts" \
+              --jq '[.artifacts[] | select(.name == "github-pages")] | length')
+            if [ "$n" -gt 0 ]; then
+              echo "Artefacto disponible (intento ${intento})."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "El artefacto github-pages no aparece tras 60 s." >&2
+          exit 1
 
       - id: despliegue
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
