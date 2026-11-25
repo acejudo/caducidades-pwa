@@ -6,7 +6,7 @@ import {
   obtenerProducto, crearProducto, actualizarProducto, eliminarProducto, guardarFoto, obtenerFoto, ErrorLimiteProductos,
 } from './storage.js';
 import { CATEGORIAS, UNIDADES, NOTAS_MAX, PRODUCTOS_MAX, CANTIDAD_MAX } from './constantes.js';
-import { ErrorValidacion } from './productos.js';
+import { ErrorValidacion, fechaLocal } from './productos.js';
 import { ICONOS } from './iconos.js';
 import { volver, reemplazar } from './router.js';
 import { confirmar as confirmarDialogo } from './dialogo.js';
@@ -73,6 +73,23 @@ function activarCantidad({ cantidad }, { restar, sumar }) {
   actualizar();
 }
 
+// Botón ✕ junto a la fecha de compra: la deja vacía y pasa el foco al campo; desactivado
+// con el campo vacío (product-form, "Quitar la fecha de compra"). Devuelve la función que
+// actualiza su estado, para llamarla tras aplicar un borrador.
+function activarQuitarFecha({ fechaCompra }, { quitarFecha }) {
+  const actualizar = () => { quitarFecha.disabled = !fechaCompra.value; };
+  quitarFecha.addEventListener('click', () => {
+    fechaCompra.value = '';
+    fechaCompra.dispatchEvent(new Event('input', { bubbles: true }));
+    fechaCompra.dispatchEvent(new Event('change', { bubbles: true }));
+    fechaCompra.focus();
+  });
+  fechaCompra.addEventListener('input', actualizar);
+  fechaCompra.addEventListener('change', actualizar);
+  actualizar();
+  return actualizar;
+}
+
 function opciones(lista, actual) {
   // Una unidad guardada que no está en la lista se añade para no perderla.
   const valores = lista.includes(actual) || !actual ? lista : [...lista, actual];
@@ -120,6 +137,8 @@ function construirFormulario(valores, { edicion, hrefFoto, foto, imagen, obtener
     type: 'text', autocomplete: 'off', enterkeyhint: 'next', placeholder: 'Ej. Leche, Yogur, Pollo', required: true,
   });
   const fechaCompra = control('input', 'fechaCompra', { type: 'date' });
+  const quitarFecha = el('button', { type: 'button', class: 'campo__quitar', 'aria-label': 'Quitar fecha de compra' },
+    icono(ICONOS.cerrar));
   const fechaCaducidad = control('input', 'fechaCaducidad', { type: 'date', required: true });
   const cantidad = control('input', 'cantidad', { type: 'text', inputmode: 'decimal', autocomplete: 'off', class: 'campo__control cantidad__valor' });
   const unidad = el('select', { name: 'unidad', class: 'campo__control cantidad__unidad', 'aria-label': 'Unidad' },
@@ -134,7 +153,6 @@ function construirFormulario(valores, { edicion, hrefFoto, foto, imagen, obtener
   // En la fila fija, "Cancelar" a la izquierda y "Guardar" a la derecha (orden en el CSS).
   const guardar = el('button', { type: 'submit', class: 'btn btn--primario btn--bloque formulario__guardar', text: 'Guardar' });
   const cancelar = el('button', { type: 'button', class: 'btn btn--secundario btn--bloque formulario__cancelar', text: 'Cancelar' });
-  const eliminar = edicion ? el('button', { type: 'button', class: 'btn btn--peligro btn--bloque', text: 'Eliminar' }) : null;
   const aviso = el('p', { class: 'formulario__aviso', role: 'alert', hidden: true });
 
   const { zona: zonaFoto, pintada } = zonaDeFoto(hrefFoto, foto, { imagen, obtenerFoto: leerFoto });
@@ -142,22 +160,21 @@ function construirFormulario(valores, { edicion, hrefFoto, foto, imagen, obtener
   const form = el('form', { class: 'formulario', novalidate: true },
     zonaFoto,
     campo('nombre', 'Nombre', nombre, { obligatorio: true }),
-    campo('fechaCompra', 'Fecha de compra', fechaCompra, { opcional: true }),
+    campo('fechaCompra', 'Fecha de compra', el('div', { class: 'campo__fila' }, fechaCompra, quitarFecha), { opcional: true }),
     campo('fechaCaducidad', 'Fecha de caducidad', fechaCaducidad, { obligatorio: true }),
     campo('cantidad', 'Cantidad', el('div', { class: 'cantidad' },
       el('div', { class: 'cantidad__grupo' }, restar, cantidad, sumar), unidad)),
     campo('categoria', 'Categoría', categoria),
     campo('notas', 'Notas', notas, { opcional: true }),
-    // Guardar y Cancelar quedan fijos abajo; Eliminar va después, sin fijar, para que
-    // no ocupe pantalla al rellenar ni se pulse por error.
+    // Guardar y Cancelar quedan fijos abajo. Eliminar es la papelera de la cabecera
+    // (`accionCabecera`), para que la edición quepa sin scroll.
     el('div', { class: 'formulario__acciones' }, aviso, guardar, cancelar),
-    eliminar && el('div', { class: 'formulario__peligro' }, eliminar),
   );
 
   const controles = { nombre, fechaCompra, fechaCaducidad, cantidad, unidad, categoria, notas };
   for (const [clave, c] of Object.entries(controles)) c.value = valores[clave];
 
-  return { form, controles, botones: { restar, sumar, guardar, cancelar, eliminar }, aviso, zonaFoto, pintada };
+  return { form, controles, botones: { restar, sumar, quitarFecha, guardar, cancelar }, aviso, zonaFoto, pintada };
 }
 
 // Orden de los campos en pantalla (para enfocar el primero con error). La unidad
@@ -219,6 +236,8 @@ export function crearPantallaFormulario({
   // Aviso breve tras guardar o eliminar y retraso del indicador de carga (ui-feedback).
   avisar = mostrarAviso,
   retrasoCarga,
+  // Fecha de hoy para rellenar la fecha de compra del alta (product-form).
+  hoy = () => new Date(),
 } = {}) {
   // Las pruebas sustituyen solo las operaciones que les interesan.
   const almacen = {
@@ -237,13 +256,14 @@ export function crearPantallaFormulario({
   let estadoInicial = '';
 
   function pintarEstado(titulo, accion) {
+    if (accionCabecera) accionCabecera.hidden = true;
     elemento.replaceChildren(el('div', { class: 'formulario__estado', role: 'alert' },
       el('p', { class: 'formulario__estado-titulo', text: titulo }),
       accion));
   }
 
   async function cargar() {
-    let valores = { ...VALORES_ALTA };
+    let valores = { ...VALORES_ALTA, fechaCompra: fechaLocal(hoy()) };
     if (edicion) {
       try {
         producto = await conIndicadorDeCarga(elemento, almacen.obtenerProducto(id), { retraso: retrasoCarga });
@@ -275,8 +295,10 @@ export function crearPantallaFormulario({
     estadoInicial = JSON.stringify({ valores: leerValores(partes.controles), foto: fotoGuardada });
     aplicarValores(partes.controles, borrador?.valores);
     activarCantidad(partes.controles, partes.botones);
+    activarQuitarFecha(partes.controles, partes.botones);
     activarGuardado(partes);
-    activarCancelarYEliminar(partes);
+    activarCancelar(partes);
+    avisoActual = partes.aviso;
     // Ir a Elegir foto guarda lo escrito para recuperarlo al volver (design.md §7).
     partes.zonaFoto.addEventListener('click', () => guardarBorrador(clave, {
       valores: leerValores(partes.controles),
@@ -284,6 +306,7 @@ export function crearPantallaFormulario({
       ...(imagenActual && { imagen: imagenActual }),
     }));
     elemento.replaceChildren(partes.form);
+    if (accionCabecera) accionCabecera.hidden = false;
     await partes.pintada;
   }
 
@@ -297,7 +320,7 @@ export function crearPantallaFormulario({
     }
   }
 
-  function activarCancelarYEliminar({ controles, botones, aviso }) {
+  function activarCancelar({ controles, botones }) {
     const hayCambios = () => JSON.stringify({ valores: leerValores(controles), foto: fotoActual }) !== estadoInicial;
 
     botones.cancelar.addEventListener('click', async () => {
@@ -313,27 +336,42 @@ export function crearPantallaFormulario({
       descartarBorrador(clave);
       navegacion.volver();
     });
-
-    botones.eliminar?.addEventListener('click', async () => {
-      const eliminarlo = await confirmar({
-        titulo: `¿Eliminar «${producto.nombre}»?`,
-        mensaje: 'Dejará de aparecer en la lista.',
-        aceptar: 'Eliminar',
-        peligro: true,
-      });
-      if (!eliminarlo) return;
-      try {
-        await almacen.eliminarProducto(id);
-        descartarBorrador(clave);
-        avisar('Producto eliminado');
-        navegacion.reemplazar('/listado');
-      } catch (error) {
-        console.error('No se pudo eliminar el producto:', error);
-        aviso.textContent = 'No se pudo eliminar el producto. Inténtalo de nuevo.';
-        aviso.hidden = false;
-      }
-    });
   }
+
+  // Papelera de la cabecera (product-form, "Eliminar desde la edición"). Se crea y se
+  // engancha una sola vez, aunque `cargar()` se repita con "Reintentar"; está oculta hasta
+  // que hay un producto cargado.
+  let avisoActual = null;
+  const accionCabecera = edicion
+    ? el('button', {
+      type: 'button',
+      class: 'cabecera__accion cabecera__accion--peligro',
+      'aria-label': 'Eliminar producto',
+      hidden: true,
+    }, icono(ICONOS.eliminar))
+    : null;
+  accionCabecera?.addEventListener('click', async () => {
+    if (!producto) return;
+    const eliminarlo = await confirmar({
+      titulo: `¿Eliminar «${producto.nombre}»?`,
+      mensaje: 'Dejará de aparecer en la lista.',
+      aceptar: 'Eliminar',
+      peligro: true,
+    });
+    if (!eliminarlo) return;
+    try {
+      await almacen.eliminarProducto(id);
+      descartarBorrador(clave);
+      avisar('Producto eliminado');
+      navegacion.reemplazar('/listado');
+    } catch (error) {
+      console.error('No se pudo eliminar el producto:', error);
+      if (avisoActual) {
+        avisoActual.textContent = 'No se pudo eliminar el producto. Inténtalo de nuevo.';
+        avisoActual.hidden = false;
+      }
+    }
+  });
 
   function activarGuardado({ form, controles, botones, aviso }) {
     let guardando = false;
@@ -386,5 +424,6 @@ export function crearPantallaFormulario({
     });
   }
 
-  return { elemento, cargado: cargar() };
+  // `accionCabecera`: la papelera que ui.js pone en la cabecera (null en el alta).
+  return { elemento, cargado: cargar(), accionCabecera };
 }

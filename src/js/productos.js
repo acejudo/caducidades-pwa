@@ -77,6 +77,13 @@ export function normalizarProducto(datos = {}) {
 
 // ---------- Validación ----------
 
+// Día local de `fecha` como YYYY-MM-DD (no el UTC de toISOString, que cerca de medianoche
+// sería otro día). Lo usa el alta para rellenar la fecha de compra (product-form).
+export function fechaLocal(fecha) {
+  const dos = (n) => String(n).padStart(2, '0');
+  return `${fecha.getFullYear()}-${dos(fecha.getMonth() + 1)}-${dos(fecha.getDate())}`;
+}
+
 // true si `valor` es una fecha YYYY-MM-DD que existe en el calendario.
 export function esFechaValida(valor) {
   const partes = /^(\d{4})-(\d{2})-(\d{2})$/.exec(valor ?? '');

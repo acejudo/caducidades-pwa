@@ -493,3 +493,18 @@ describe('identificador de producto', () => {
     }
   });
 });
+
+describe('fecha local de hoy', () => {
+  test('fechaLocal da el día local en YYYY-MM-DD', () => {
+    assert.equal(productos.fechaLocal?.(new Date(2026, 10, 25, 12)), '2026-11-25');
+  });
+
+  test('fechaLocal cerca de medianoche da el día local, no el UTC', () => {
+    assert.equal(productos.fechaLocal?.(new Date(2026, 10, 25, 0, 30)), '2026-11-25');
+    assert.equal(productos.fechaLocal?.(new Date(2026, 10, 25, 23, 30)), '2026-11-25');
+  });
+
+  test('fechaLocal con mes y día de una cifra', () => {
+    assert.equal(productos.fechaLocal?.(new Date(2026, 0, 5, 9)), '2026-01-05');
+  });
+});

@@ -40,6 +40,7 @@ const SHELL_FILES = [
   './js/drive.js',
   './js/fotos-reales.js',
   './js/avisos.js',
+  './js/ajustes.js',
   './js/feedback.js',
   './img/predeterminadas/yogur.svg',
   './img/predeterminadas/leche.svg',

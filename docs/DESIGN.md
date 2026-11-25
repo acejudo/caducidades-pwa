@@ -120,18 +120,17 @@ Jerarquía clara:
 - Navegación inferior (opcional pero recomendable)
 
 ### 5.2 Nuevo Producto / Editar Producto
-- Cabecera con flecha de volver + título
+- Cabecera con flecha de volver + título; en modo edición, icono de papelera (Eliminar) a la derecha
 - Zona de foto compacta en la parte superior: una fila con la miniatura (o un icono de cámara) y "Toca para elegir foto"; con foto, su nombre o "Tu foto" y "Toca para cambiar"
 - Formulario vertical limpio:
   - Nombre
-  - Fecha de compra (opcional)
+  - Fecha de compra (opcional), con la fecha de hoy en el alta y un botón ✕ en la misma fila para vaciarla
   - Fecha de caducidad (*)
   - Cantidad + unidad
   - Categoría
   - Notas (opcional)
 - Botones fijos abajo, en una misma fila: “Cancelar” (secundario, a la izquierda) y “Guardar” (primario, a la derecha)
-- En modo edición aparece también “Eliminar”, al final del formulario y fuera de la fila fija
-- En un móvil de 390×844 el alta cabe entera sin hacer scroll
+- En un móvil de 390×740 el alta y la edición caben enteras sin hacer scroll
 
 ### 5.3 Elegir Foto Predeterminada
 - Cabecera “Elegir foto”
@@ -151,10 +150,11 @@ Jerarquía clara:
 - Botones: “Editar” y “Eliminar”
 
 ### 5.5 Ajustes
-- Sección de sincronización con Google Drive (logo + estado + botón “Sincronizar ahora”)
+- Sección de sincronización con Google Drive (nube y nombre del servicio en una fila + estado + botón “Sincronizar ahora”)
 - Email de la cuenta conectada
 - Toggle de notificaciones (opcional)
 - Botón “Cerrar sesión”
+- En un móvil de 390×740 cabe entero sin hacer scroll, con “Cerrar sesión” justo encima de la navegación inferior
 
 ---
 

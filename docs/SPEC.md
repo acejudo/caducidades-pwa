@@ -134,7 +134,7 @@ Campos (en este orden):
 
 1. Zona de foto (toca para elegir predeterminada o hacer foto real)
 2. Nombre (obligatorio)
-3. Fecha de compra (opcional)
+3. Fecha de compra (opcional; en el alta viene con la fecha de hoy y un botón ✕ al lado la deja vacía)
 4. Fecha de caducidad (obligatorio)
 5. Cantidad + unidad
 6. Categoría (Nevera / Congelador / Despensa / Otros)
@@ -143,7 +143,9 @@ Campos (en este orden):
 Botones:
 - Guardar
 - Cancelar
-- Eliminar (solo en modo edición)
+- Eliminar (solo en modo edición): icono de papelera en la cabecera, a la derecha del título
+
+En un móvil de 390×740 el alta y la edición caben enteras sin hacer scroll.
 
 ### 5.3 Elegir Foto Predeterminada
 
@@ -172,6 +174,8 @@ Botones:
 - Botón “Sincronizar ahora”
 - Opción "Avisar de lo que caduca pronto" (activada por defecto, guardada en cada dispositivo): al abrir la app, el Listado muestra un aviso con los productos caducados o que caducan en los próximos 2 días, que lleva al filtro correspondiente y se puede cerrar hasta la siguiente apertura. Es un aviso **dentro de la app**: sin notificaciones del sistema ni permisos, porque una PWA sin servidor de *push* no puede avisar con la app cerrada.
 - Botón **Cerrar sesión**
+
+En un móvil de 390×740 Ajustes cabe entero sin hacer scroll.
 
 ---
 

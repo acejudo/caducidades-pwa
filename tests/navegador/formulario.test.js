@@ -11,6 +11,7 @@ const formulario = await import('../../src/js/formulario.js').catch((error) => {
 
 const borradores = await import('../../src/js/borradores.js').catch(() => ({}));
 const fotos = await import('../../src/js/fotos.js').catch(() => ({}));
+const dialogo = await import('../../src/js/dialogo.js').catch(() => ({}));
 
 const BD_PRUEBAS = 'caducidades-pruebas';
 const CAMPOS = ['nombre', 'fechaCompra', 'fechaCaducidad', 'cantidad', 'categoria', 'notas'];
@@ -49,9 +50,18 @@ let navegaciones;
 let confirmaciones;
 let respuestaConfirmar;
 
+// "Hoy" fijo para el alta: la fecha de compra viene rellena con él.
+const HOY = new Date(2026, 10, 25, 12);
+
+// Última pantalla montada: su papelera (`accionCabecera`) se monta también en la zona, como
+// haría la cabecera de la app, para poder pulsarla y darle el foco.
+let pantallaActual = null;
+const papelera = () => pantallaActual?.accionCabecera ?? null;
+
 async function montar(opciones = {}) {
   zona.replaceChildren();
   const pantalla = formulario.crearPantallaFormulario({
+    hoy: () => HOY,
     navegacion: {
       volver: () => navegaciones.push(['volver']),
       reemplazar: (path) => navegaciones.push(['reemplazar', path]),
@@ -59,7 +69,8 @@ async function montar(opciones = {}) {
     confirmar: async (datos) => { confirmaciones.push(datos); return respuestaConfirmar; },
     ...opciones,
   });
-  zona.append(pantalla.elemento);
+  pantallaActual = pantalla;
+  zona.append(...[pantalla.accionCabecera, pantalla.elemento].filter(Boolean));
   await pantalla.cargado;
   return pantalla.elemento;
 }
@@ -119,7 +130,8 @@ prueba('Formulario de alta vacío', async () => {
   verdadero(foto.compareDocumentPosition(raiz.querySelector('.campo')) & Node.DOCUMENT_POSITION_FOLLOWING, 'la foto va primero');
   igualProfundo(
     ['nombre', 'fechaCompra', 'fechaCaducidad', 'notas', 'cantidad', 'unidad', 'categoria'].map((n) => control(raiz, n).value),
-    ['', '', '', '', '1', 'ud', 'Nevera'],
+    ['', '2026-11-25', '', '', '1', 'ud', 'Nevera'],
+    'la fecha de compra viene con la de hoy',
   );
   igualProfundo([...control(raiz, 'unidad').options].map((o) => o.value), ['ud', 'pack', 'kg', 'g', 'l', 'ml']);
   igualProfundo([...control(raiz, 'categoria').options].map((o) => o.value), ['Nevera', 'Congelador', 'Despensa', 'Otros']);
@@ -132,6 +144,7 @@ prueba('Formulario de alta vacío', async () => {
   igual(marca('notas', '.campo__opcional')?.textContent.trim(), '(opcional)');
   verdadero(boton(raiz, 'Guardar') && boton(raiz, 'Cancelar'), 'faltan Guardar y Cancelar');
   igual(boton(raiz, 'Eliminar'), null, 'sin Eliminar en el alta');
+  igual(papelera(), null, 'sin papelera en el alta');
   // Cada control tiene etiqueta accesible.
   for (const n of [...CAMPOS, 'unidad']) {
     const c = control(raiz, n);
@@ -146,7 +159,23 @@ prueba('Formulario de edición relleno', async () => {
     ['nombre', 'fechaCompra', 'fechaCaducidad', 'cantidad', 'unidad', 'categoria', 'notas'].map((n) => control(raiz, n).value),
     ['Salmón ahumado', '2026-11-08', '2026-11-30', '2', 'pack', 'Congelador', 'Para el viernes'],
   );
-  verdadero(boton(raiz, 'Guardar') && boton(raiz, 'Cancelar') && boton(raiz, 'Eliminar'), 'faltan botones');
+  verdadero(boton(raiz, 'Guardar') && boton(raiz, 'Cancelar'), 'faltan Guardar y Cancelar');
+  igual(boton(raiz, 'Eliminar'), null, 'Eliminar ya no está en el formulario');
+  const p2 = papelera();
+  verdadero(p2 instanceof HTMLButtonElement, 'falta la papelera de la cabecera');
+  igual(p2.getAttribute('aria-label'), 'Eliminar producto');
+  igual(p2.type, 'button');
+  igual(p2.hidden, false, 'visible con el producto cargado');
+  verdadero(p2.querySelector('svg'), 'con icono');
+  igual(p2.textContent.trim(), '', 'sin texto suelto');
+});
+
+prueba('Papelera solo en la edición', async () => {
+  await montar();
+  igual(papelera(), null, 'en el alta no hay papelera');
+  await montar({ id: 'no-existe' });
+  verdadero(papelera(), 'la edición crea la papelera');
+  igual(papelera().hidden, true, 'oculta si el producto no existe');
 });
 
 prueba('Unidad fuera de la lista', async () => {
@@ -154,6 +183,73 @@ prueba('Unidad fuera de la lista', async () => {
   const raiz = await montar({ id: p.id });
   igual(control(raiz, 'unidad').value, 'bote');
   verdadero([...control(raiz, 'unidad').options].some((o) => o.value === 'bote'), 'falta la opción');
+});
+
+// ---------- Quitar la fecha de compra ----------
+
+const quitarFecha = (raiz) => raiz.querySelector('button[aria-label="Quitar fecha de compra"]');
+
+prueba('botón para quitar la fecha de compra', async () => {
+  const raiz = await montar();
+  const quitar = quitarFecha(raiz);
+  verdadero(quitar, 'falta "Quitar fecha de compra"');
+  igual(quitar.type, 'button');
+  igual(quitar.disabled, false, 'activo con la fecha de hoy');
+  verdadero(quitar.querySelector('svg'), 'con icono');
+  igual(quitar.textContent.trim(), '', 'sin texto suelto');
+  igual(quitar.closest('.campo')?.dataset.campo, 'fechaCompra', 'en el campo Fecha de compra');
+});
+
+prueba('Edición sin fecha de compra', async () => {
+  const p = await storage.crearProducto({ ...COMPLETO, fechaCompra: null });
+  const raiz = await montar({ id: p.id });
+  igual(control(raiz, 'fechaCompra').value, '', 'no se rellena con hoy');
+  igual(quitarFecha(raiz).disabled, true);
+});
+
+prueba('Alta sin fecha de compra', async () => {
+  const raiz = await montar();
+  quitarFecha(raiz).click();
+  igual(control(raiz, 'fechaCompra').value, '');
+  igual(document.activeElement, control(raiz, 'fechaCompra'), 'el foco pasa al campo');
+  igual(quitarFecha(raiz).disabled, true, 'desactivado con el campo vacío');
+  escribir(raiz, 'nombre', 'Yogur');
+  escribir(raiz, 'fechaCaducidad', dentroDe(5));
+  guardar(raiz).click();
+  await esperarA(() => navegaciones.length > 0);
+  const [guardado] = await storage.listarProductos();
+  igual(guardado.fechaCompra, null);
+});
+
+prueba('Volver a elegir una fecha', async () => {
+  const raiz = await montar();
+  quitarFecha(raiz).click();
+  escribir(raiz, 'fechaCompra', '2026-11-20');
+  igual(quitarFecha(raiz).disabled, false, 'vuelve a estar activo');
+  escribir(raiz, 'nombre', 'Yogur');
+  escribir(raiz, 'fechaCaducidad', dentroDe(5));
+  guardar(raiz).click();
+  await esperarA(() => navegaciones.length > 0);
+  const [guardado] = await storage.listarProductos();
+  igual(guardado.fechaCompra, '2026-11-20');
+});
+
+prueba('Fecha vaciada en el borrador', async () => {
+  let raiz = await montar();
+  quitarFecha(raiz).click();
+  raiz.querySelector('a.zona-foto').click();
+  raiz = await montar(); // volver al formulario
+  igual(control(raiz, 'fechaCompra').value, '', 'sigue vacía');
+  igual(quitarFecha(raiz).disabled, true);
+});
+
+prueba('Cancelar el alta sin tocar nada', async () => {
+  const raiz = await montar();
+  igual(control(raiz, 'fechaCompra').value, '2026-11-25');
+  boton(raiz, 'Cancelar').click();
+  await esperarA(() => navegaciones.length > 0);
+  igual(confirmaciones.length, 0, 'no pregunta aunque la fecha venga rellena');
+  igualProfundo(navegaciones, [['volver']]);
 });
 
 // ---------- Botones de cantidad ----------
@@ -222,6 +318,7 @@ prueba('Alta correcta', async () => {
   igual(enviosSinInterceptar, 0, 'el formulario no recarga la página');
   const lista = await storage.listarProductos();
   igualProfundo(lista.map((p) => [p.nombre, p.fechaCaducidad, p.cantidad, p.unidad, p.categoria]), [['Yogur', dentroDe(5), 1, 'ud', 'Nevera']]);
+  igual(lista[0].fechaCompra, '2026-11-25', 'con la fecha de compra de hoy');
 });
 
 prueba('Edición correcta', async () => {
@@ -380,7 +477,8 @@ prueba('Eliminar confirmado', async () => {
   const p = await storage.crearProducto({ ...COMPLETO, nombre: 'Leche' });
   const raiz = await montar({ id: p.id });
   respuestaConfirmar = true;
-  boton(raiz, 'Eliminar').click();
+  verdadero(raiz, 'pantalla montada');
+  papelera().click();
   await esperarA(() => navegaciones.length > 0);
   igualProfundo(navegaciones, [['reemplazar', '/listado']]);
   igual(await storage.obtenerProducto(p.id), null, 'eliminado del almacenamiento');
@@ -391,13 +489,23 @@ prueba('Eliminar confirmado', async () => {
 
 prueba('Eliminar cancelado', async () => {
   const p = await storage.crearProducto({ ...COMPLETO, nombre: 'Leche' });
-  const raiz = await montar({ id: p.id });
-  respuestaConfirmar = false;
-  boton(raiz, 'Eliminar').click();
-  await esperarA(() => confirmaciones.length > 0);
-  await esperarUnPoco();
-  igual(navegaciones.length, 0);
-  igualProfundo(await storage.obtenerProducto(p.id), p, 'el producto no cambia');
+  // Con el diálogo real, para comprobar que el foco vuelve a la papelera.
+  const raiz = await montar({ id: p.id, confirmar: dialogo.confirmar });
+  try {
+    papelera().focus();
+    papelera().click();
+    await esperarA(() => document.querySelector('dialog[open]'));
+    const dialogoAbierto = document.querySelector('dialog[open]');
+    [...dialogoAbierto.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Cancelar').click();
+    await esperarA(() => !document.querySelector('dialog[open]'));
+    await esperarUnPoco();
+    igual(navegaciones.length, 0);
+    verdadero(raiz.querySelector('form'), 'sigue en el formulario');
+    igualProfundo(await storage.obtenerProducto(p.id), p, 'el producto no cambia');
+    igual(document.activeElement, papelera(), 'el foco vuelve a la papelera');
+  } finally {
+    document.querySelectorAll('dialog[open]').forEach((d) => d.close());
+  }
 });
 
 // ---------- Producto inexistente y borrador ----------
@@ -433,6 +541,27 @@ prueba('error al cargar el producto con Reintentar', async () => {
   boton(raiz, 'Reintentar').click();
   await esperarA(() => raiz.querySelector('form'));
   igual(control(raiz, 'nombre').value, 'Salmón ahumado');
+});
+
+prueba('papelera tras Reintentar: una sola confirmación', async () => {
+  const p = await storage.crearProducto({ ...COMPLETO });
+  let intentos = 0;
+  let eliminaciones = 0;
+  const obtenerProducto = async (id) => {
+    intentos += 1;
+    if (intentos === 1) throw new storage.ErrorAlmacenamiento('fallo temporal');
+    return storage.obtenerProducto(id);
+  };
+  const eliminarProducto = async (id) => { eliminaciones += 1; return storage.eliminarProducto(id); };
+  const raiz = await montar({ id: p.id, almacen: { obtenerProducto, eliminarProducto } });
+  igual(papelera().hidden, true, 'oculta mientras no hay producto');
+  boton(raiz, 'Reintentar').click();
+  await esperarA(() => raiz.querySelector('form'));
+  igual(papelera().hidden, false);
+  papelera().click();
+  await esperarA(() => navegaciones.length > 0);
+  igual(confirmaciones.length, 1, 'una sola confirmación');
+  igual(eliminaciones, 1, 'se elimina una sola vez');
 });
 
 prueba('Ir a Elegir foto y volver', async () => {
@@ -742,11 +871,11 @@ zonaMovilFormulario.addEventListener('click', (evento) => {
   if (evento.target.closest('a')) evento.preventDefault();
 });
 
-// Alto disponible para el formulario en 390×844 con la app instalada en un iPhone: pantalla
-// menos la cabecera (56 px), la zona segura superior (47 px, la barra de estado), el margen
-// superior del contenido (16 px) y la zona segura inferior (34 px, la barra de inicio). En
-// el formulario no hay margen inferior: la fila de botones fija ya cierra la pantalla.
-const ALTO_DISPONIBLE = 844 - 56 - 47 - 16 - 34;
+// Alto disponible para el formulario en una pantalla de 390×740 (un móvil con las barras
+// del sistema y del navegador): pantalla menos la cabecera (56 px) y el margen superior del
+// contenido (16 px). En el formulario no hay margen inferior: la fila de botones fija ya
+// cierra la pantalla. Cubre también el iPhone instalado de 390×844 (691 px útiles).
+const ALTO_DISPONIBLE = 740 - 56 - 16;
 
 async function montarEnMovil(opciones = {}) {
   await cargarEstilosFormulario();
@@ -773,6 +902,34 @@ prueba('Alta sin scroll', async () => {
   }
 });
 
+prueba('Edición sin scroll', async () => {
+  const p = await storage.crearProducto({
+    ...COMPLETO,
+    notas: 'Para el viernes, abrir el sábado por la mañana y guardar el resto en la nevera',
+  });
+  try {
+    const raiz = await montarEnMovil({ id: p.id });
+    const alto = raiz.querySelector('form').getBoundingClientRect().height;
+    verdadero(alto <= ALTO_DISPONIBLE, `el formulario mide ${Math.round(alto)} px y caben ${ALTO_DISPONIBLE}`);
+  } finally {
+    zonaMovilFormulario.replaceChildren();
+  }
+});
+
+prueba('Sin alto añadido', async () => {
+  try {
+    const raiz = await montarEnMovil();
+    const caja = (n) => raiz.querySelector(`.campo[data-campo="${n}"]`).getBoundingClientRect();
+    igual(Math.round(caja('fechaCompra').height), Math.round(caja('fechaCaducidad').height), 'mismo alto que Fecha de caducidad');
+    const fecha = control(raiz, 'fechaCompra').getBoundingClientRect();
+    const quitar = raiz.querySelector('button[aria-label="Quitar fecha de compra"]').getBoundingClientRect();
+    verdadero(quitar.top >= fecha.top - 1 && quitar.bottom <= fecha.bottom + 1, 'en la misma fila que el campo');
+    verdadero(quitar.width >= 44 && quitar.height >= 44, 'tamaño táctil mínimo');
+  } finally {
+    zonaMovilFormulario.replaceChildren();
+  }
+});
+
 prueba('Botones en una fila', async () => {
   try {
     const raiz = await montarEnMovil();
@@ -790,10 +947,13 @@ prueba('Botones en una fila', async () => {
 prueba('Eliminar al final de la edición', async () => {
   const p = await storage.crearProducto({ ...COMPLETO });
   const raiz = await montar({ id: p.id });
-  const eliminar = boton(raiz, 'Eliminar');
-  verdadero(eliminar, 'falta "Eliminar"');
-  verdadero(control(raiz, 'notas').compareDocumentPosition(eliminar) & Node.DOCUMENT_POSITION_FOLLOWING, 'después de Notas');
-  igual(eliminar.closest('.formulario__acciones'), null, 'fuera de la fila fija');
+  // Después de Notas solo queda la fila fija de Cancelar y Guardar.
+  const despues = [...raiz.querySelectorAll('button')]
+    .filter((b) => control(raiz, 'notas').compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+    .filter((b) => !b.closest('.formulario__acciones'));
+  igualProfundo(despues.map((b) => b.textContent.trim()), [], 'ningún botón después de Notas');
+  igual(boton(raiz, 'Eliminar'), null, 'Eliminar está en la cabecera');
+  verdadero(papelera(), 'la papelera existe');
 });
 
 prueba('la zona de foto compacta con foto predeterminada', async () => {
@@ -832,9 +992,9 @@ prueba('Error al guardar', async () => {
 prueba('Producto eliminado desde la edición', async () => {
   const avisos = [];
   const p = await storage.crearProducto({ ...COMPLETO });
-  const raiz = await montar({ id: p.id, avisar: (texto) => avisos.push(texto) });
+  await montar({ id: p.id, avisar: (texto) => avisos.push(texto) });
   respuestaConfirmar = true;
-  boton(raiz, 'Eliminar').click();
+  papelera().click();
   await esperarA(() => navegaciones.length > 0);
   igualProfundo(avisos, ['Producto eliminado']);
 });

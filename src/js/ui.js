@@ -13,8 +13,9 @@ import {
   vigilarOtrasVentanas,
 } from './auth.js';
 import { crearSincronizador } from './sincronizador.js';
-import { crearBotonSincronizacion, crearSeccionSincronizacion } from './estado-sincronizacion.js';
-import { crearSeccionAvisos, avisosPorDefecto } from './avisos.js';
+import { crearBotonSincronizacion } from './estado-sincronizacion.js';
+import { avisosPorDefecto } from './avisos.js';
+import { crearPantallaAjustes } from './ajustes.js';
 
 // ---------- Sincronización con Drive ----------
 
@@ -65,15 +66,21 @@ const $nav = () => document.getElementById('nav-inferior');
 
 // Pinta la pantalla del destino devuelto por el router.
 export function mostrar({ ruta, path, params }) {
-  pintarCabecera(ruta);
+  // Una pantalla devuelve su elemento o { elemento, accionCabecera }: la acción (la
+  // papelera de Editar producto) va a la derecha del título.
+  const resultado = ruta.render({ params });
+  const { elemento, accionCabecera = null } = resultado instanceof Node ? { elemento: resultado } : resultado;
+  pintarCabecera(ruta, accionCabecera);
   pintarNav(ruta, path);
+  // Ajustes ajusta su margen inferior a la navegación (ui-theme, "Ajustes en una sola pantalla").
+  $app().classList.toggle('app--ajustes', path === '/ajustes');
   vaciar($contenido());
-  $contenido().append(ruta.render({ params }));
+  $contenido().append(elemento);
   document.title = `${ruta.titulo} · Caducidades`;
   window.scrollTo(0, 0);
 }
 
-function pintarCabecera(ruta) {
+function pintarCabecera(ruta, accionCabecera) {
   const visible = ruta.mostrarCabecera !== false;
   $cabecera().hidden = !visible;
   $app().classList.toggle('app--sin-cabecera', !visible);
@@ -89,6 +96,7 @@ function pintarCabecera(ruta) {
   if (ruta.mostrarSincronizacion) {
     $cabecera().append(crearBotonSincronizacion({ sincronizador }).elemento);
   }
+  if (accionCabecera) $cabecera().append(accionCabecera);
 }
 
 function pintarNav(ruta, path) {
@@ -182,26 +190,16 @@ function pantallaLogin() {
 }
 
 function pantallaAjustes() {
-  const sesion = sesionActual();
-  return el('section', { class: 'ajustes' },
-    crearSeccionSincronizacion({ sincronizador }).elemento,
-    crearSeccionAvisos({ preferencia: avisosPorDefecto }).elemento,
-    el('section', { class: 'cuenta' },
-      el('h2', { class: 'cuenta__titulo', text: 'Cuenta' }),
-      el('p', { class: 'cuenta__nombre', text: sesion?.nombre ?? '' }),
-      el('p', { class: 'cuenta__email', text: sesion?.email ?? '' }),
-    ),
-    el('button', {
-      type: 'button',
-      class: 'btn btn--peligro btn--bloque',
-      text: 'Cerrar sesión',
-      onClick: () => {
-        detenerSincronizacion();
-        cerrarSesion();
-        reemplazar('/login');
-      },
-    }),
-  );
+  return crearPantallaAjustes({
+    sesion: sesionActual(),
+    sincronizador,
+    preferenciaAvisos: avisosPorDefecto,
+    alCerrarSesion: () => {
+      detenerSincronizacion();
+      cerrarSesion();
+      reemplazar('/login');
+    },
+  }).elemento;
 }
 
 export const pantallas = {
@@ -213,7 +211,10 @@ export const pantallas = {
 
   detalle: ({ params }) => crearPantallaDetalle({ id: params.id }).elemento,
 
-  editar: ({ params }) => crearPantallaFormulario({ id: params.id }).elemento,
+  editar: ({ params }) => {
+    const { elemento, accionCabecera } = crearPantallaFormulario({ id: params.id });
+    return { elemento, accionCabecera };
+  },
 
   elegirFoto: ({ params }) => crearPantallaElegirFoto({ para: params.id ? `editar:${params.id}` : 'nuevo' }).elemento,
 

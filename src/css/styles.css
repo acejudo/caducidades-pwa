@@ -192,6 +192,12 @@ body {
   padding-bottom: calc(var(--alto-nav) + env(safe-area-inset-bottom) + var(--espacio-6));
 }
 
+/* En Ajustes, solo el hueco de la nav y un margen: sin espacio sobrante que permita
+   desplazar la pantalla (ui-theme). El Listado conserva el suyo por el botón flotante. */
+.app--ajustes .contenido {
+  padding-bottom: calc(var(--alto-nav) + env(safe-area-inset-bottom) + var(--espacio-4));
+}
+
 .nav-inferior {
   position: fixed;
   right: 0;
@@ -460,7 +466,7 @@ body {
 .ajustes {
   display: flex;
   flex-direction: column;
-  gap: var(--espacio-4);
+  gap: var(--espacio-3);
 }
 
 .marcador {
@@ -619,11 +625,12 @@ body {
 
 /* ---------- Formulario de producto ---------- */
 
-/* Compacto para que el alta quepa sin scroll en el móvil (product-form). */
+/* Compacto para que el alta y la edición quepan sin scroll en 390×740 (product-form):
+   10 px entre campos. */
 .formulario {
   display: flex;
   flex-direction: column;
-  gap: var(--espacio-3);
+  gap: calc(var(--espacio-2) + 2px);
 }
 
 .campo {
@@ -672,6 +679,39 @@ body {
 
 textarea.campo__control {
   resize: vertical;
+}
+
+/* Campo con un botón al lado, en la misma fila (Fecha de compra y su ✕): no añade alto. */
+.campo__fila {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+}
+
+.campo__fila .campo__control {
+  flex: 1;
+  min-width: 0;
+}
+
+.campo__quitar {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tactil-min);
+  height: var(--tactil-min);
+  border-radius: var(--radio-completo);
+  color: var(--color-texto-secundario);
+  cursor: pointer;
+}
+
+.campo__quitar:active {
+  background: var(--color-fondo-input);
+}
+
+.campo__quitar:disabled {
+  color: var(--color-borde);
+  cursor: not-allowed;
 }
 
 .campo__error {
@@ -748,10 +788,6 @@ textarea.campo__control {
 .formulario__estado-titulo {
   font-size: var(--texto-producto);
   font-weight: var(--peso-semi);
-}
-
-.formulario__peligro {
-  padding-top: var(--espacio-2);
 }
 
 .formulario__acciones .formulario__aviso {
@@ -1210,6 +1246,11 @@ button.detalle__foto:focus-visible {
   background: var(--color-fondo-input);
 }
 
+/* Papelera de Editar producto (product-form, "Eliminar desde la edición"). */
+.cabecera__accion--peligro {
+  color: var(--color-peligro);
+}
+
 .cabecera__accion:disabled {
   color: var(--color-texto-secundario);
   cursor: default;
@@ -1263,18 +1304,23 @@ button.detalle__foto:focus-visible {
   letter-spacing: 0.04em;
 }
 
-/* Bloque de Drive centrado, como en el mockup (icono genérico de nube: sin logos de marca). */
+/* Bloque de Drive centrado y en una fila, con la nube pequeña a la izquierda (icono
+   genérico: sin logos de marca), para que Ajustes quepa sin scroll en 390×740. */
 .ajustes-sync__drive {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: var(--espacio-1);
-  padding: var(--espacio-2) 0;
+  justify-content: center;
+  gap: var(--espacio-2);
 }
 
 .ajustes-sync__nube {
   display: flex;
   color: var(--color-primario);
+}
+
+.ajustes-sync__nube svg {
+  width: 24px;
+  height: 24px;
 }
 
 .ajustes-sync__servicio {
