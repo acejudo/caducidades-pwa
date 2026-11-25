@@ -46,7 +46,7 @@
 - [x] 5.2 Antes del *commit*:
   - Repasar `git diff --cached` con la regla de `CLAUDE.md`: los artefactos describen el comportamiento, sin pistas para un atacante ni referencias a `docs/security/`.
   - Comprobar que la carpeta del cambio va en el mismo *push* que el código.
-- [ ] 5.3 Manual (usuario), tras desplegar y abrir y cerrar la app una vez en el móvil:
+- [x] 5.3 Manual (usuario), tras desplegar y abrir y cerrar la app una vez en el móvil:
   - La sincronización funciona como antes.
   - Tras la primera subida, `caducidades.json` en Drive aparece en una sola línea.
 - [ ] 5.4 Manual (usuario), opcional: crear en el escritorio una página local con un `iframe` a la app publicada y comprobar que solo aparece el aviso con el enlace.
