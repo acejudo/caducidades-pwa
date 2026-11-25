@@ -76,7 +76,7 @@
 
 - [x] 7.1 Verificación final: `npm test` y `npm run test:navegador` en verde.
 - [x] 7.2 Antes del *commit*: repasar el diff con la regla de `CLAUDE.md` y comprobar que la carpeta del cambio va en el mismo *push* que el código.
-- [ ] 7.3 Manual (usuario), tras desplegar y abrir y cerrar la app una vez en el móvil:
+- [x] 7.3 Manual (usuario), tras desplegar y abrir y cerrar la app una vez en el móvil:
   - Nuevo producto, Editar producto y Ajustes no se desplazan.
   - La papelera de Editar pide confirmación y elimina.
   - El alta trae la fecha de hoy, la ✕ la quita y el producto se guarda sin fecha de compra.
