@@ -96,7 +96,7 @@
 
 - [x] 8.1 Verificación final: `npm test` y `npm run test:navegador` en verde.
 - [x] 8.2 Antes del *commit*: repasar el diff con la regla de `CLAUDE.md` y comprobar que la carpeta del cambio va en el mismo *push* que el código.
-- [ ] 8.3 Manual (usuario), tras desplegar y abrir y cerrar la app una vez en el móvil:
+- [x] 8.3 Manual (usuario), tras desplegar y abrir y cerrar la app una vez en el móvil:
   - El Listado se ve por secciones, con unos 9 productos por pantalla.
   - La búsqueda y los filtros funcionan juntos.
   - Deslizar para eliminar funciona en todas las secciones.

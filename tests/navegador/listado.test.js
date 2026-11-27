@@ -1035,3 +1035,23 @@ prueba('Última fila visible', async () => {
     window.scrollTo(0, 0);
   }
 });
+
+prueba('los filtros caben en una fila a 360 px', async () => {
+  // Contadores de dos cifras en los tres filtros: "Todos · 22", "Caducados · 12", "Esta semana · 10".
+  for (let n = 0; n < 12; n += 1) await storage.crearProducto({ nombre: `C${n}`, fechaCaducidad: dentroDe(-1 - n) });
+  for (let n = 0; n < 10; n += 1) await storage.crearProducto({ nombre: `S${n}`, fechaCaducidad: dentroDe(n % 7) });
+  const raiz = await montarConGestos();
+  zonaGestos.style.width = '360px';
+  try {
+    const filtros = pestanas(raiz);
+    igualProfundo(filtros.map((p) => p.textContent.trim()), ['Todos · 22', 'Caducados · 12', 'Esta semana · 10']);
+    const arriba = filtros.map((p) => Math.round(p.getBoundingClientRect().top));
+    verdadero(arriba.every((t) => t === arriba[0]), `en una fila: ${arriba.join(', ')}`);
+    const derecha = filtros.at(-1).getBoundingClientRect().right;
+    const limite = raiz.getBoundingClientRect().right;
+    verdadero(derecha <= limite, `dentro del ancho: ${Math.round(derecha)} de ${Math.round(limite)}`);
+    verdadero(filtros.every((p) => p.getBoundingClientRect().height >= 44), 'tamaño táctil mínimo');
+  } finally {
+    zonaGestos.style.width = '390px';
+  }
+});

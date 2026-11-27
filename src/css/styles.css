@@ -492,15 +492,16 @@ body {
   margin-bottom: var(--espacio-4);
 }
 
+/* Compactas para caber en una fila a 360 px, incluso con contadores de dos cifras. */
 .pestana {
   min-height: var(--tactil-min);
-  padding: var(--espacio-2) 10px;
+  padding: var(--espacio-1) 10px;
   border: 1px solid var(--color-borde);
   border-radius: var(--radio-completo);
   background: var(--color-fondo);
   color: var(--color-texto);
   font: inherit;
-  font-size: var(--texto-fecha);
+  font-size: var(--texto-secundario);
   font-weight: var(--peso-medio);
   white-space: nowrap;
   cursor: pointer;
