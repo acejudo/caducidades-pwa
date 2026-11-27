@@ -109,19 +109,19 @@ No se publicará en ninguna tienda de aplicaciones.
 
 ### 5.1 Listado (Pantalla principal)
 
-- Cabecera con título “Caducidades” + icono de estado de sincronización
-- Filtros rápidos: Todas | Pronto | Caducadas (o por categoría)
-- Lista de productos ordenada por `fechaCaducidad` ascendente
-- Cada ítem muestra:
+- Cabecera con título “Caducidades”, icono de estado de sincronización e icono de **Ajustes**
+- Buscador “Buscar producto”: filtra por nombre mientras se escribe, sin distinguir mayúsculas ni acentos, junto con el filtro activo. No se conserva al salir del Listado
+- Filtros con contador: Todos · N | Caducados · N | Esta semana · N (hoy y los próximos 7 días). Los contadores no dependen de la búsqueda
+- Lista agrupada en secciones con su cabecera y su número de productos: **Caducados**, **Esta semana** y **Más adelante** (solo las que tienen productos), ordenada por `fechaCaducidad` ascendente dentro de cada una
+- Cada producto es una fila compacta de dos líneas:
   - Foto (predeterminada o real)
   - Nombre
-  - Fecha de caducidad
-  - Días restantes o “¡Caducado!”
-  - Cantidad
-  - Indicador de color de urgencia
-- Botón flotante “+” para añadir producto
+  - Tiempo relativo con el color de su urgencia (“Hace 4 días”, “Ayer”, “Hoy”, “Mañana”, “En 7 días”) y fecha corta (“21 nov”, o “30 ene 2027” si es de otro año)
+  - Cantidad a la derecha, solo si no es “1 ud”
+- Botón flotante “Añadir” (icono + y texto) para añadir producto; la lista deja hueco al final para que no tape la última fila
 - Al pulsar un producto → va a Detalle
 - Deslizar (swipe) → opción de eliminar
+- Sin barra de navegación inferior
 
 **Colores de urgencia:**
 - Rojo: caducado o caduca en 0-2 días
@@ -175,7 +175,7 @@ En un móvil de 390×740 el alta y la edición caben enteras sin hacer scroll.
 - Opción "Avisar de lo que caduca pronto" (activada por defecto, guardada en cada dispositivo): al abrir la app, el Listado muestra un aviso con los productos caducados o que caducan en los próximos 2 días, que lleva al filtro correspondiente y se puede cerrar hasta la siguiente apertura. Es un aviso **dentro de la app**: sin notificaciones del sistema ni permisos, porque una PWA sin servidor de *push* no puede avisar con la app cerrada.
 - Botón **Cerrar sesión**
 
-En un móvil de 390×740 Ajustes cabe entero sin hacer scroll.
+Se abre con el icono de la cabecera del Listado y vuelve a él con la flecha. En un móvil de 390×740 Ajustes cabe entero sin hacer scroll.
 
 ---
 

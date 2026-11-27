@@ -124,7 +124,6 @@ ol {
   /* Interacción */
   --tactil-min: 44px;
   --alto-cabecera: 56px;
-  --alto-nav: 64px;
 }
 
 body {
@@ -187,47 +186,10 @@ body {
   padding-top: calc(var(--espacio-4) + env(safe-area-inset-top));
 }
 
-/* Deja hueco para la nav fija cuando está visible */
-.app--con-nav .contenido {
-  padding-bottom: calc(var(--alto-nav) + env(safe-area-inset-bottom) + var(--espacio-6));
-}
-
-/* En Ajustes, solo el hueco de la nav y un margen: sin espacio sobrante que permita
-   desplazar la pantalla (ui-theme). El Listado conserva el suyo por el botón flotante. */
+/* En Ajustes, solo la zona segura y un margen: sin espacio sobrante que permita
+   desplazar la pantalla (ui-theme, "Ajustes en una sola pantalla"). */
 .app--ajustes .contenido {
-  padding-bottom: calc(var(--alto-nav) + env(safe-area-inset-bottom) + var(--espacio-4));
-}
-
-.nav-inferior {
-  position: fixed;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  z-index: 10;
-  display: flex;
-  justify-content: space-around;
-  min-height: calc(var(--alto-nav) + env(safe-area-inset-bottom));
-  padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-  background: var(--color-fondo);
-  border-top: 1px solid var(--color-borde);
-}
-
-.nav-inferior__item {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  min-width: var(--tactil-min);
-  min-height: var(--tactil-min);
-  font-size: var(--texto-secundario);
-  font-weight: var(--peso-medio);
-  color: var(--color-texto-secundario);
-}
-
-.nav-inferior__item--activo {
-  color: var(--color-primario);
+  padding-bottom: calc(env(safe-area-inset-bottom) + var(--espacio-4));
 }
 
 /* ---------- Componentes ---------- */
@@ -282,17 +244,22 @@ body {
   filter: none;
 }
 
+/* Botón "Añadir": icono + y texto, fijo abajo a la derecha por encima de la zona segura. */
 .fab {
   position: fixed;
   right: calc(var(--espacio-4) + env(safe-area-inset-right));
-  bottom: calc(var(--alto-nav) + env(safe-area-inset-bottom) + var(--espacio-4));
+  bottom: calc(env(safe-area-inset-bottom) + var(--espacio-4));
   z-index: 11;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
+  gap: var(--espacio-2);
   height: 56px;
+  padding: 0 var(--espacio-5) 0 var(--espacio-4);
   border-radius: var(--radio-completo);
+  font-size: var(--texto-producto);
+  font-weight: var(--peso-semi);
+  text-decoration: none;
   background: var(--color-primario);
   color: var(--color-sobre-primario);
   box-shadow: var(--sombra-flotante);
@@ -483,118 +450,216 @@ body {
 /* ---------- Listado ---------- */
 
 .listado {
-  /* Hueco para que el botón "+" no tape la última tarjeta. */
-  padding-bottom: calc(56px + var(--espacio-4));
+  /* Hueco al final para que "Añadir" no tape la última fila: su alto, su margen inferior
+     y un margen más. */
+  padding-bottom: calc(56px + var(--espacio-4) + var(--espacio-4));
 }
 
+/* Degradado del color de fondo bajo "Añadir" que suaviza el corte de la lista.
+   Decorativo: sin texto ni eventos. */
+.listado::after {
+  content: "";
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 10;
+  height: calc(56px + var(--espacio-4) + env(safe-area-inset-bottom));
+  background: linear-gradient(to bottom, rgb(255 255 255 / 0), var(--color-fondo) 70%);
+  pointer-events: none;
+}
+
+/* El acceso a Ajustes va detrás del estado de sincronización: solo el último de la
+   cabecera se pega al borde. */
+.cabecera__accion:not(:last-child) {
+  margin-right: 0;
+}
+
+.listado__buscador {
+  margin-bottom: var(--espacio-3);
+  background: var(--color-fondo);
+}
+
+.listado__buscador[hidden] {
+  display: none;
+}
+
+/* Filtros en píldoras con su contador: la activa, oscura con texto blanco. */
 .pestanas {
   display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-2);
   margin-bottom: var(--espacio-4);
-  border-bottom: 1px solid var(--color-borde);
 }
 
 .pestana {
-  flex: 1;
   min-height: var(--tactil-min);
-  padding: var(--espacio-2);
-  border: 0;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  background: none;
-  color: var(--color-texto-secundario);
+  padding: var(--espacio-2) 10px;
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-completo);
+  background: var(--color-fondo);
+  color: var(--color-texto);
   font: inherit;
+  font-size: var(--texto-fecha);
   font-weight: var(--peso-medio);
+  white-space: nowrap;
   cursor: pointer;
 }
 
-.pestana[aria-selected="true"] {
-  border-bottom-color: var(--color-primario);
-  color: var(--color-primario);
+.pestana__contador {
   font-weight: var(--peso-semi);
 }
 
-/* "Pronto" y "Caducadas" con su color de urgencia (tonos de texto con contraste AA). */
-#filtro-pronto {
-  color: var(--color-urgencia-naranja-texto);
+.pestana__separador,
+.pestana__contador {
+  color: var(--color-texto-secundario);
 }
 
-#filtro-caducadas {
-  color: var(--color-urgencia-rojo-texto);
+.pestana[aria-selected="true"] {
+  border-color: var(--color-texto);
+  background: var(--color-texto);
+  color: var(--color-fondo);
 }
 
-#filtro-pronto[aria-selected="true"] {
-  border-bottom-color: var(--color-urgencia-naranja-texto);
-}
-
-#filtro-caducadas[aria-selected="true"] {
-  border-bottom-color: var(--color-urgencia-rojo-texto);
+.pestana[aria-selected="true"] .pestana__separador,
+.pestana[aria-selected="true"] .pestana__contador {
+  color: inherit;
 }
 
 .pestana:active {
   background: var(--color-fondo-input);
 }
 
-.pestana:focus-visible {
-  outline: 2px solid var(--color-primario);
-  outline-offset: -2px;
+.pestana[aria-selected="true"]:active {
+  background: var(--color-texto);
 }
 
-.lista-productos {
+.pestana:focus-visible {
+  outline: 2px solid var(--color-primario);
+  outline-offset: 2px;
+}
+
+/* Secciones del listado: título en mayúsculas pequeñas con su color y el contador. */
+.listado__seccion + .listado__seccion {
+  margin-top: var(--espacio-5);
+}
+
+.listado__seccion-cabecera {
   display: flex;
-  flex-direction: column;
-  gap: var(--espacio-3);
+  align-items: baseline;
+  gap: var(--espacio-2);
+  margin: 0 0 var(--espacio-2) var(--espacio-1);
+  font-size: var(--texto-secundario);
+  font-weight: var(--peso-semi);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-texto-secundario);
+}
+
+.listado__seccion--caducados .listado__seccion-titulo {
+  color: var(--color-urgencia-rojo-texto);
+}
+
+.listado__seccion--semana .listado__seccion-titulo {
+  color: var(--color-urgencia-naranja-texto);
+}
+
+.listado__seccion-contador {
+  font-weight: var(--peso-medio);
+}
+
+/* Las filas de una sección van juntas en una tarjeta blanca, con separadores finos. */
+.lista-productos {
   margin: 0;
   padding: 0;
   list-style: none;
+  background: var(--color-fondo);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-md);
+  box-shadow: var(--sombra-suave);
+  overflow: hidden;
 }
 
-.tarjeta--producto {
-  align-items: flex-start;
+.lista-productos > li + li {
+  border-top: 1px solid var(--color-borde);
+}
+
+/* Fila compacta: imagen, nombre y tiempo relativo · fecha corta; la cantidad a la
+   derecha si no es 1 ud. Anula el aspecto de .tarjeta (la usa deslizar.js). */
+.tarjeta.fila-producto {
+  min-height: 64px;
+  padding: var(--espacio-2) var(--espacio-4);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
   color: inherit;
   text-decoration: none;
 }
 
-.tarjeta--producto:active {
+.fila-producto:active {
   background: var(--color-fondo-input);
 }
 
-.tarjeta__foto {
+.fila-producto__foto {
   flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--radio-sm);
   background: var(--color-fondo-foto);
   color: var(--color-texto-secundario);
   overflow: hidden;
 }
 
-.tarjeta__foto .foto-real {
+.fila-producto__foto .foto-real {
   width: 100%;
   height: 100%;
 }
 
-.tarjeta__cuerpo {
+.fila-producto__cuerpo {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
 }
 
-.tarjeta--producto .tarjeta__nombre {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+.fila-producto__nombre {
   overflow: hidden;
-  overflow-wrap: anywhere;
+  font-size: var(--texto-producto);
+  font-weight: var(--peso-semi);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.tarjeta__caducidad,
-.tarjeta__cantidad {
-  font-size: var(--texto-secundario);
+.fila-producto__caducidad {
+  font-size: var(--texto-fecha);
   color: var(--color-texto-secundario);
+}
+
+.fila-producto__relativo {
+  font-weight: var(--peso-semi);
+}
+
+.fila-producto__cantidad {
+  flex: none;
+  font-size: var(--texto-fecha);
+  color: var(--color-texto-secundario);
+}
+
+/* Color de texto de cada nivel de urgencia (contraste AA sobre blanco). */
+.urgencia-texto--rojo {
+  color: var(--color-urgencia-rojo-texto);
+}
+
+.urgencia-texto--naranja {
+  color: var(--color-urgencia-naranja-texto);
+}
+
+.urgencia-texto--verde {
+  color: var(--color-urgencia-verde-texto);
 }
 
 .listado__vacio,
@@ -1655,8 +1720,7 @@ button.detalle__foto:focus-visible {
 
 /* ---------- Estados al pasar el ratón (solo con puntero) y al pulsar ---------- */
 
-.foto:active,
-.nav-inferior__item:active {
+.foto:active {
   filter: brightness(0.95);
 }
 

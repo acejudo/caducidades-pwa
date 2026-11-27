@@ -14,6 +14,7 @@ const {
   normalizarProducto, validarProducto, nuevoProducto, aplicarCambios,
   diasRestantes, nivelUrgencia, textoCaducidad, ordenarPorCaducidad, marcarEliminado,
   filtrarPorEstado, FILTROS,
+  textoRelativo, seccionCaducidad, agruparPorSeccion, buscarPorNombre, contarPorFiltro,
 } = productos;
 
 // Datos mínimos válidos para partir de ellos en cada prueba.
@@ -365,9 +366,92 @@ describe('product-list: filtros por estado', () => {
 
   test('FILTROS: claves y textos de las pestañas', () => {
     assert.deepEqual(FILTROS.map((f) => [f.clave, f.texto]), [
-      ['todas', 'Todas'], ['pronto', 'Pronto'], ['caducadas', 'Caducadas'],
+      ['todas', 'Todos'], ['caducadas', 'Caducados'], ['pronto', 'Esta semana'],
     ]);
     assert.ok(Object.isFrozen(FILTROS));
+  });
+});
+
+describe('product-model: texto relativo y secciones', () => {
+  test('Textos relativos', () => {
+    assert.deepEqual([-5, -1, 0, 1, 9].map((d) => textoRelativo(d)),
+      ['Hace 5 días', 'Ayer', 'Hoy', 'Mañana', 'En 9 días']);
+  });
+
+  test('Límites de las secciones', () => {
+    assert.deepEqual([-1, 0, 7, 8].map((d) => seccionCaducidad(d)),
+      ['caducados', 'semana', 'semana', 'adelante']);
+  });
+
+  test('el límite de Esta semana es el final del naranja', () => {
+    const limite = constantes.URGENCIA.naranjaMaxDias;
+    assert.equal(seccionCaducidad(limite), 'semana');
+    assert.equal(seccionCaducidad(limite + 1), 'adelante');
+  });
+
+  test('Agrupar sin secciones vacías', () => {
+    const hoy = new Date(2026, 10, 25, 10);
+    const lista = [
+      { id: 'y', nombre: 'Yogur', fechaCaducidad: '2026-11-23' },
+      { id: 'l', nombre: 'Leche', fechaCaducidad: '2026-11-28' },
+      { id: 'q', nombre: 'Queso', fechaCaducidad: '2026-11-30' },
+    ];
+    const grupos = agruparPorSeccion(lista, hoy);
+    assert.deepEqual(grupos.map((g) => [g.clave, g.titulo, g.productos.map((p) => p.nombre)]), [
+      ['caducados', 'Caducados', ['Yogur']],
+      ['semana', 'Esta semana', ['Leche', 'Queso']],
+    ]);
+  });
+
+  test('agrupar: orden de las secciones y orden interno conservado', () => {
+    const hoy = new Date(2026, 10, 25, 10);
+    const lista = [
+      { id: 'a', nombre: 'Lejos B', fechaCaducidad: '2027-01-10' },
+      { id: 'b', nombre: 'Semana', fechaCaducidad: '2026-11-26' },
+      { id: 'c', nombre: 'Lejos A', fechaCaducidad: '2026-12-20' },
+      { id: 'd', nombre: 'Viejo', fechaCaducidad: '2026-11-01' },
+    ];
+    const grupos = agruparPorSeccion(lista, hoy);
+    assert.deepEqual(grupos.map((g) => g.clave), ['caducados', 'semana', 'adelante']);
+    assert.deepEqual(grupos[2].productos.map((p) => p.nombre), ['Lejos B', 'Lejos A']);
+    assert.equal(grupos[2].titulo, 'Más adelante');
+    assert.deepEqual(agruparPorSeccion([], hoy), []);
+  });
+});
+
+describe('product-list: búsqueda y contadores', () => {
+  const lista = Object.freeze([
+    { id: '1', nombre: 'Plátano', fechaCaducidad: '2026-11-20' },
+    { id: '2', nombre: 'Pan', fechaCaducidad: '2026-11-21' },
+    { id: '3', nombre: 'Leche', fechaCaducidad: '2026-11-22' },
+  ]);
+
+  test('Buscar sin acentos', () => {
+    assert.deepEqual(buscarPorNombre(lista, 'PLATANO').map((p) => p.nombre), ['Plátano']);
+    assert.deepEqual(buscarPorNombre(lista, '  pan ').map((p) => p.nombre), ['Pan']);
+  });
+
+  test('búsqueda vacía o de solo espacios devuelve la lista entera', () => {
+    assert.deepEqual(buscarPorNombre(lista, '').map((p) => p.id), ['1', '2', '3']);
+    assert.deepEqual(buscarPorNombre(lista, '   ').map((p) => p.id), ['1', '2', '3']);
+    assert.deepEqual(buscarPorNombre(lista).map((p) => p.id), ['1', '2', '3']);
+  });
+
+  test('buscar no modifica la lista original', () => {
+    const copia = structuredClone(lista);
+    const resultado = buscarPorNombre(lista, '');
+    assert.notEqual(resultado, lista);
+    assert.deepEqual(lista, copia);
+  });
+
+  test('Contadores', () => {
+    const hoy = new Date(2026, 10, 17, 9, 30);
+    const dentroDe = (n) => {
+      const d = new Date(2026, 10, 17 + n);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+    const productosDias = [-3, -1, 0, 5, 20].map((n) => ({ id: `p${n}`, nombre: 'X', fechaCaducidad: dentroDe(n) }));
+    assert.deepEqual(contarPorFiltro(productosDias, hoy), { todas: 5, caducadas: 2, pronto: 2 });
   });
 });
 

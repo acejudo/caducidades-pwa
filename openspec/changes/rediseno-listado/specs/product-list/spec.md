@@ -16,7 +16,7 @@ Listado SHALL mostrar los productos visibles agrupados en las secciones de `prod
 - **THEN** solo se ve la sección "Caducados", con su cabecera
 
 ### Requirement: Búsqueda por nombre
-Listado SHALL tener un buscador "Buscar producto" que, mientras se escribe, muestra solo los productos cuyo nombre contiene el texto, sin distinguir mayúsculas ni acentos, a la vez que el filtro activo. Con el buscador vacío MUST verse todos los del filtro. Si ninguno coincide, MUST mostrar "Ningún producto coincide con «texto»", con el texto escrito tal cual. Los contadores de los filtros MUST NOT depender de la búsqueda. Sin ningún producto guardado, el buscador no se muestra. Al volver a Listado desde otra pantalla, el buscador aparece vacío.
+Listado SHALL tener un buscador "Buscar producto" que, al escribir, muestra solo los productos del filtro activo cuyo nombre contiene el texto, sin distinguir mayúsculas ni acentos; vacío, MUST mostrar todos los del filtro. Si ninguno coincide, MUST mostrar "Ningún producto coincide con «texto»", con el texto tal cual. Los contadores de los filtros MUST NOT depender de la búsqueda. Sin productos guardados no se muestra, y al volver a Listado aparece vacío.
 
 #### Scenario: Buscar sin acentos
 - **WHEN** hay "Plátano", "Pan" y "Leche" y el usuario escribe "PLATANO"

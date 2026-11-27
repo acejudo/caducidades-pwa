@@ -45,7 +45,7 @@
   - "Alta sin foto", "Edición con foto" y "Edición con foto real":
     - la miniatura está en la misma fila que Nombre (mismo `top` ±1 px) y lleva a Elegir foto;
     - su nombre accesible es el del escenario.
-  - "Sugerencia al escribir" (incluido el producto guardado), "La sugerencia cambia con el nombre", "Foto elegida a mano", "Sin foto elegida a mano", "Edición con foto" y "Edición sin foto".
+  - "Sugerencia al escribir" (incluido el producto guardado), "La sugerencia cambia con el nombre", "Foto elegida a mano", "Sin foto elegida a mano", "Edición conserva su foto" y "Edición sin foto".
   - La preferencia sobrevive al borrador: elegir "Queso", ir a Elegir foto, volver sin elegir y escribir "Leche" → sigue "Queso".
   - "Ir a Elegir foto y volver", "Volver sin elegir conserva la foto" y "Borrador descartado al guardar" siguen en verde.
   - En `tests/navegador/elegir-foto.test.js`: elegir cualquier opción deja el borrador con la foto marcada como elegida a mano.

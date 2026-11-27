@@ -33,7 +33,7 @@ prueba('Cargada dentro de un marco', async () => {
     verdadero(enlace, 'hay un enlace "Abrir Caducidades"');
     igual(enlace?.getAttribute('target'), '_top', 'abre fuera del marco');
     igual(doc.querySelectorAll('button').length, 0, 'sin botones de la app ni de login');
-    igual(doc.getElementById('nav-inferior').hidden, true, 'sin navegación');
+    igual(doc.getElementById('nav-inferior'), null, 'sin barra de navegación');
     igual([...doc.scripts].some((s) => s.src.includes('accounts.google.com')), false, 'no carga Google Sign-In');
   } finally {
     marco.remove();

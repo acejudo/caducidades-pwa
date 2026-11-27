@@ -3,7 +3,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
 // Import tolerante: si el módulo aún no existe, cada prueba falla por separado (rojo).
-const { formatearFecha, formatearCantidad, formatearMomento } = await import('../src/js/formato.js').catch((error) => {
+const { formatearFecha, formatearCantidad, formatearMomento, formatearFechaCorta, simplificar } = await import('../src/js/formato.js').catch((error) => {
   console.error(`No se pudo cargar formato.js: ${error.message}`);
   return {};
 });
@@ -76,5 +76,28 @@ describe('formato: momento de la última sincronización', () => {
   test('medianoche', () => {
     assert.equal(formatearMomento(iso(2026, 10, 13, 0, 0), AHORA), 'hoy a las 0:00');
     assert.equal(formatearMomento(iso(2026, 10, 12, 23, 59), AHORA), 'ayer a las 23:59');
+  });
+});
+
+describe('formato: fecha corta', () => {
+  const HOY = new Date(2026, 10, 25, 10);
+
+  test('mismo año', () => {
+    assert.equal(formatearFechaCorta('2026-11-21', HOY), '21 nov');
+  });
+
+  test('día de una cifra, sin cero delante', () => {
+    assert.equal(formatearFechaCorta('2026-01-05', HOY), '5 ene');
+  });
+
+  test('Fecha de otro año', () => {
+    assert.equal(formatearFechaCorta('2027-01-30', HOY), '30 ene 2027');
+    assert.equal(formatearFechaCorta('2025-12-31', HOY), '31 dic 2025');
+  });
+});
+
+describe('formato: simplificar', () => {
+  test('sin mayúsculas, sin acentos y sin espacios en los extremos', () => {
+    assert.equal(simplificar('  PLÁTANO Ñandú '), 'platano nandu');
   });
 });

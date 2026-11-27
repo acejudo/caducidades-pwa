@@ -24,7 +24,7 @@ function crearPreferenciaFalsa() {
 }
 
 // Zona fuera de la pantalla con el ancho del móvil. Dentro, un <main class="contenido">
-// con las clases de la app con navegación inferior, para que se apliquen sus márgenes.
+// con las clases de la app en Ajustes (sin barra inferior), para que se apliquen sus márgenes.
 const zona = document.createElement('div');
 zona.style.cssText = 'position:absolute; left:-10000px; top:0; width:390px;';
 document.body.append(zona);
@@ -53,7 +53,7 @@ async function montar() {
   const contenido = document.createElement('main');
   contenido.className = 'contenido';
   const app = document.createElement('div');
-  app.className = 'app--con-nav app--ajustes';
+  app.className = 'app app--ajustes';
   contenido.append(elemento);
   app.append(contenido);
   zona.replaceChildren(app);
@@ -70,7 +70,6 @@ const cerrarSesion = (raiz) => [...raiz.querySelectorAll('button')].find((b) => 
 
 // Alto de la pantalla en el móvil de referencia menos la cabecera (56 px).
 const ALTO_CONTENIDO = 740 - 56;
-const ALTO_NAV = 64;
 const ESPACIO_4 = 16;
 
 prueba('Ajustes muestra sus secciones y Cerrar sesión', async () => {
@@ -98,7 +97,8 @@ prueba('Cerrar sesión por encima de la navegación', async () => {
   const { elemento, contenido } = await montar();
   const boton = cerrarSesion(elemento).getBoundingClientRect();
   verdadero(boton.height >= 44, 'tamaño táctil mínimo');
+  // Sin barra inferior: debajo solo queda el margen (más la zona segura, 0 en la prueba).
   const debajo = contenido.getBoundingClientRect().bottom - boton.bottom;
-  verdadero(debajo >= ALTO_NAV, `deja sitio a la navegación (${Math.round(debajo)} px)`);
-  verdadero(debajo <= ALTO_NAV + ESPACIO_4 + 1, `sin margen sobrante (${Math.round(debajo)} px)`);
+  verdadero(debajo >= ESPACIO_4 - 1, `deja un margen (${Math.round(debajo)} px)`);
+  verdadero(debajo <= ESPACIO_4 + 1, `sin margen sobrante (${Math.round(debajo)} px)`);
 });

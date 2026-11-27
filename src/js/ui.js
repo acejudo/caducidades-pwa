@@ -54,25 +54,18 @@ sincronizador.suscribir((estado) => {
   if (estado.enLinea && !estado.tokenVigente && sesionActual()) cargarGoogle().catch(() => {});
 });
 
-const NAV = [
-  { path: '/listado', texto: 'Listado', icono: ICONOS.lista },
-  { path: '/ajustes', texto: 'Ajustes', icono: ICONOS.ajustes },
-];
-
 const $app = () => document.getElementById('app');
 const $cabecera = () => document.getElementById('cabecera');
 const $contenido = () => document.getElementById('contenido');
-const $nav = () => document.getElementById('nav-inferior');
 
 // Pinta la pantalla del destino devuelto por el router.
 export function mostrar({ ruta, path, params }) {
-  // Una pantalla devuelve su elemento o { elemento, accionCabecera }: la acción (la
-  // papelera de Editar producto) va a la derecha del título.
+  // Una pantalla devuelve su elemento o { elemento, accionCabecera }: la acción (el
+  // acceso a Ajustes del Listado o la papelera de Editar producto) va a la derecha.
   const resultado = ruta.render({ params });
   const { elemento, accionCabecera = null } = resultado instanceof Node ? { elemento: resultado } : resultado;
   pintarCabecera(ruta, accionCabecera);
-  pintarNav(ruta, path);
-  // Ajustes ajusta su margen inferior a la navegación (ui-theme, "Ajustes en una sola pantalla").
+  // Ajustes ajusta su margen inferior para caber sin scroll (ui-theme, "Ajustes en una sola pantalla").
   $app().classList.toggle('app--ajustes', path === '/ajustes');
   vaciar($contenido());
   $contenido().append(elemento);
@@ -97,24 +90,6 @@ function pintarCabecera(ruta, accionCabecera) {
     $cabecera().append(crearBotonSincronizacion({ sincronizador }).elemento);
   }
   if (accionCabecera) $cabecera().append(accionCabecera);
-}
-
-function pintarNav(ruta, path) {
-  const nav = $nav();
-  nav.hidden = !ruta.mostrarNav;
-  $app().classList.toggle('app--con-nav', Boolean(ruta.mostrarNav));
-  vaciar(nav);
-  if (!ruta.mostrarNav) return;
-  for (const item of NAV) {
-    const activo = path === item.path;
-    nav.append(
-      el('a', {
-        href: `#${item.path}`,
-        class: `nav-inferior__item${activo ? ' nav-inferior__item--activo' : ''}`,
-        'aria-current': activo ? 'page' : null,
-      }, icono(item.icono), el('span', { text: item.texto })),
-    );
-  }
 }
 
 // ---------- Pantallas ----------
@@ -205,7 +180,10 @@ function pantallaAjustes() {
 export const pantallas = {
   login: pantallaLogin,
 
-  listado: () => crearPantallaListado({ sincronizador }).elemento,
+  listado: () => {
+    const { elemento, accionCabecera } = crearPantallaListado({ sincronizador });
+    return { elemento, accionCabecera };
+  },
 
   nuevo: () => crearPantallaFormulario().elemento,
 

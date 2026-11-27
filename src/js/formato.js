@@ -1,7 +1,19 @@
-// Formato de fechas y cantidades en español. Puro y sin importaciones.
+// Formato de fechas, cantidades y textos de búsqueda en español. Puro y sin importaciones.
 // Usa una tabla de meses propia: Intl da "sept" o "sep." según el motor y la versión.
 
 const MESES = Object.freeze(['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', 'oct', 'nov', 'dic']);
+
+// Minúsculas, sin acentos y sin espacios en los extremos, para buscar sin distinguirlos.
+export function simplificar(texto) {
+  return texto.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
+}
+
+// '2026-11-21' → '21 nov' si es del mismo año que `hoy`, y '30 ene 2027' si no.
+export function formatearFechaCorta(fecha, hoy = new Date()) {
+  const [anio, mes, dia] = fecha.split('-').map(Number);
+  const corta = `${dia} ${MESES[mes - 1]}`;
+  return anio === hoy.getFullYear() ? corta : `${corta} ${anio}`;
+}
 
 // '2026-11-20' → '20 nov 2026'. Trabaja con el texto: no crea un Date, así que no
 // depende de la zona horaria.

@@ -34,7 +34,7 @@ Mientras el usuario escribe el nombre, si la foto del formulario no la ha elegid
 - **WHEN** el usuario pulsa "Sin foto" en Elegir foto y después escribe "Leche"
 - **THEN** la miniatura sigue sin foto
 
-#### Scenario: Edición con foto
+#### Scenario: Edición conserva su foto
 - **WHEN** el usuario edita un producto con la foto "Yogur" y cambia el nombre a "Leche"
 - **THEN** el producto conserva la foto "Yogur"
 
@@ -43,7 +43,7 @@ Mientras el usuario escribe el nombre, si la foto del formulario no la ha elegid
 - **THEN** la miniatura muestra la foto "Huevos"
 
 ### Requirement: Plazos rápidos de caducidad
-Bajo el campo Fecha de caducidad, el formulario SHALL ofrecer los botones "+3 días", "+1 semana", "+2 semanas" y "+1 mes", con el tamaño táctil mínimo. Cada uno MUST rellenar la fecha de caducidad sumando ese plazo a la fecha de hoy del dispositivo; "+1 mes" va al mismo día del mes siguiente o, si no existe, al último día de ese mes. El botón cuyo plazo coincide con la fecha elegida MUST verse marcado y anunciarse como pulsado. Junto a la etiqueta del campo SHALL mostrarse el texto relativo de `product-model` de la fecha elegida ("En 7 días"), con el color de su urgencia.
+Bajo la Fecha de caducidad, el formulario SHALL ofrecer los botones "+3 días", "+1 semana", "+2 semanas" y "+1 mes", con el tamaño táctil mínimo, que MUST rellenar la fecha sumando ese plazo a hoy; "+1 mes" va al mismo día del mes siguiente o, si no existe, a su último día. El botón cuyo plazo coincide con la fecha MUST verse marcado y anunciarse como pulsado. Junto a la etiqueta SHALL verse el texto relativo de `product-model` de la fecha ("En 7 días"), con el color de su urgencia.
 
 #### Scenario: Una semana
 - **WHEN** hoy es 2026-11-25 y el usuario pulsa "+1 semana"

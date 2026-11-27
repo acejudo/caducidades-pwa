@@ -46,7 +46,7 @@ El rediseño se acordó con el usuario sobre un lienzo de diseño con las pantal
   - Requisito nuevo "Acceso a Ajustes".
   - "Flecha de volver en pantallas secundarias" incluye Ajustes.
   - "Recorrido completo tocando" usa "Añadir" y el icono de Ajustes.
-- `ui-theme`: "Ajustes en una sola pantalla", "Ajustes en una sola pantalla" y "Respeto de zonas seguras" ya no cuentan con la barra inferior; "Tamaño táctil mínimo" se sustituye por "Zona táctil mínima", que mide el acceso a Ajustes en lugar de la barra.
+- `ui-theme`: "Ajustes en una sola pantalla" y "Respeto de zonas seguras" ya no cuentan con la barra inferior; "Tamaño táctil mínimo" se sustituye por "Zona táctil mínima", que mide el acceso a Ajustes en lugar de la barra.
 - `ui-feedback`: "Aviso breve tras guardar o eliminar" nombra el botón "Añadir".
 - `expiry-alerts`: "Tocar el aviso" usa los nombres nuevos de los filtros.
 

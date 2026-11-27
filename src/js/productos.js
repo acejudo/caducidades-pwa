@@ -3,6 +3,7 @@
 // para poder probarse en Node sin config.local.js.
 
 import { CATEGORIAS, URGENCIA, NOTAS_MAX, UNIDAD_MAX, CANTIDAD_MAX } from './constantes.js';
+import { simplificar } from './formato.js';
 
 export const TIPOS_FOTO = Object.freeze(['predeterminada', 'real', 'ninguna']);
 export const NOMBRE_MAX = 100;
@@ -229,11 +230,11 @@ export function ordenarPorCaducidad(lista) {
 
 // ---------- Filtros del listado ----------
 
-// Pestañas del listado, en orden. "Pronto" llega hasta el final del naranja.
+// Filtros del listado, en orden. "Esta semana" (`pronto`) llega hasta el final del naranja.
 export const FILTROS = Object.freeze([
-  Object.freeze({ clave: 'todas', texto: 'Todas' }),
-  Object.freeze({ clave: 'pronto', texto: 'Pronto' }),
-  Object.freeze({ clave: 'caducadas', texto: 'Caducadas' }),
+  Object.freeze({ clave: 'todas', texto: 'Todos' }),
+  Object.freeze({ clave: 'caducadas', texto: 'Caducados' }),
+  Object.freeze({ clave: 'pronto', texto: 'Esta semana' }),
 ]);
 
 const CUMPLE_FILTRO = {
@@ -247,6 +248,58 @@ const CUMPLE_FILTRO = {
 export function filtrarPorEstado(lista, filtro, hoy = new Date()) {
   const cumple = CUMPLE_FILTRO[filtro] ?? CUMPLE_FILTRO.todas;
   return lista.filter((producto) => cumple(diasRestantes(producto.fechaCaducidad, hoy)));
+}
+
+// Número de productos de cada filtro: { todas, caducadas, pronto }.
+export function contarPorFiltro(lista, hoy = new Date()) {
+  const cuenta = { todas: 0, caducadas: 0, pronto: 0 };
+  for (const producto of lista) {
+    const dias = diasRestantes(producto.fechaCaducidad, hoy);
+    for (const clave of Object.keys(cuenta)) if (CUMPLE_FILTRO[clave](dias)) cuenta[clave] += 1;
+  }
+  return cuenta;
+}
+
+// Productos cuyo nombre contiene `texto`, sin distinguir mayúsculas ni acentos. Con un
+// texto vacío o de solo espacios, todos. Devuelve siempre una lista nueva.
+export function buscarPorNombre(lista, texto = '') {
+  const buscado = simplificar(texto);
+  return lista.filter((producto) => simplificar(producto.nombre).includes(buscado));
+}
+
+// ---------- Texto relativo y secciones del listado ----------
+
+// −5 → 'Hace 5 días', −1 → 'Ayer', 0 → 'Hoy', 1 → 'Mañana', 9 → 'En 9 días'.
+export function textoRelativo(dias) {
+  if (dias < -1) return `Hace ${-dias} días`;
+  if (dias === -1) return 'Ayer';
+  if (dias === 0) return 'Hoy';
+  if (dias === 1) return 'Mañana';
+  return `En ${dias} días`;
+}
+
+// Secciones del listado, en orden. "Esta semana" es el mismo tramo que el filtro `pronto`.
+const SECCIONES = Object.freeze([
+  Object.freeze({ clave: 'caducados', titulo: 'Caducados' }),
+  Object.freeze({ clave: 'semana', titulo: 'Esta semana' }),
+  Object.freeze({ clave: 'adelante', titulo: 'Más adelante' }),
+]);
+
+export function seccionCaducidad(dias) {
+  if (dias < 0) return 'caducados';
+  if (dias <= URGENCIA.naranjaMaxDias) return 'semana';
+  return 'adelante';
+}
+
+// [{ clave, titulo, productos }] en el orden de SECCIONES, sin las vacías y conservando
+// el orden de `lista` dentro de cada una.
+export function agruparPorSeccion(lista, hoy = new Date()) {
+  const grupos = SECCIONES.map((seccion) => ({ ...seccion, productos: [] }));
+  for (const producto of lista) {
+    const clave = seccionCaducidad(diasRestantes(producto.fechaCaducidad, hoy));
+    grupos.find((grupo) => grupo.clave === clave).productos.push(producto);
+  }
+  return grupos.filter((grupo) => grupo.productos.length > 0);
 }
 
 // ---------- Productos urgentes (expiry-alerts) ----------

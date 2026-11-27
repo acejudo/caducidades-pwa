@@ -50,16 +50,17 @@ async function arrancar(router, ui, auth) {
   const { sesionActual, revalidarSesion } = auth;
 
   // Orden importante: las rutas estáticas antes que las de parámetro.
-  registrar('/login', { titulo: 'Caducidades', mostrarNav: false, mostrarCabecera: false, render: pantallas.login });
-  registrar('/listado', { titulo: 'Caducidades', mostrarNav: true, mostrarSincronizacion: true, render: pantallas.listado });
-  registrar('/producto/nuevo', { titulo: 'Nuevo producto', mostrarNav: false, padre: '/listado', render: pantallas.nuevo });
+  registrar('/login', { titulo: 'Caducidades', mostrarCabecera: false, render: pantallas.login });
+  registrar('/listado', { titulo: 'Caducidades', mostrarSincronizacion: true, render: pantallas.listado });
+  registrar('/producto/nuevo', { titulo: 'Nuevo producto', padre: '/listado', render: pantallas.nuevo });
   // Elegir foto tiene una ruta por formulario de origen: sabe a cuál devolver la foto y
   // ese formulario es su padre (design.md §4).
-  registrar('/producto/nuevo/foto', { titulo: 'Elegir foto', mostrarNav: false, padre: '/producto/nuevo', render: pantallas.elegirFoto });
-  registrar('/producto/:id/editar/foto', { titulo: 'Elegir foto', mostrarNav: false, padre: '/producto/:id/editar', render: pantallas.elegirFoto });
-  registrar('/producto/:id/editar', { titulo: 'Editar producto', mostrarNav: false, padre: '/producto/:id', render: pantallas.editar });
-  registrar('/producto/:id', { titulo: 'Detalle del producto', mostrarNav: false, padre: '/listado', render: pantallas.detalle });
-  registrar('/ajustes', { titulo: 'Ajustes', mostrarNav: true, render: pantallas.ajustes });
+  registrar('/producto/nuevo/foto', { titulo: 'Elegir foto', padre: '/producto/nuevo', render: pantallas.elegirFoto });
+  registrar('/producto/:id/editar/foto', { titulo: 'Elegir foto', padre: '/producto/:id/editar', render: pantallas.elegirFoto });
+  registrar('/producto/:id/editar', { titulo: 'Editar producto', padre: '/producto/:id', render: pantallas.editar });
+  registrar('/producto/:id', { titulo: 'Detalle del producto', padre: '/listado', render: pantallas.detalle });
+  // Ajustes se abre desde el icono de la cabecera de Listado y vuelve a él con la flecha.
+  registrar('/ajustes', { titulo: 'Ajustes', padre: '/listado', render: pantallas.ajustes });
 
   await revalidarSesion();
 

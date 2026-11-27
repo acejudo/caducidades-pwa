@@ -2,6 +2,7 @@
 // Spec: openspec/specs/product-photos. Puro (sin DOM ni config.js): se prueba en Node.
 
 import { esNombreFotoReal } from './productos.js';
+import { simplificar } from './formato.js';
 
 // Orden de la cuadrícula de Elegir foto; "Genérico" siempre al final.
 export const FOTOS_PREDETERMINADAS = Object.freeze([
@@ -36,11 +37,6 @@ export function buscarFoto(id) {
 // URL del SVG, relativa a este módulo: vale igual desde index.html que desde las pruebas.
 export function urlFoto(id) {
   return new URL(`../img/predeterminadas/${id}.svg`, import.meta.url).href;
-}
-
-// Minúsculas y sin acentos, para buscar sin distinguirlos.
-function simplificar(texto) {
-  return texto.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
 }
 
 // Fotos cuyo nombre contiene `texto` (sin distinguir mayúsculas ni acentos), en el

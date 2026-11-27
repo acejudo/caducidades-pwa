@@ -77,15 +77,14 @@ Jerarquía clara:
 - **Primario**: Fondo azul, texto blanco, bordes muy redondeados, altura generosa
 - **Secundario / Cancelar**: Fondo blanco o gris claro, borde sutil
 - **Peligro (Eliminar)**: Fondo rojo o texto rojo
-- **Flotante (+)**: Circular, azul, esquina inferior derecha
+- **Flotante (“Añadir”)**: Píldora azul con icono + y texto, esquina inferior derecha
 
-### 4.2 Cards de producto (Listado)
-- Fondo blanco
-- Borde o sombra suave
-- Foto circular o cuadrada redondeada a la izquierda
-- Nombre + fecha + días restantes
-- Indicador de color de urgencia (barra lateral o badge)
-- Cantidad en tamaño pequeño
+### 4.2 Filas de producto (Listado)
+- Filas compactas de dos líneas (al menos 64 px), agrupadas por sección en una tarjeta blanca con borde y sombra suaves y separadores finos
+- Foto cuadrada redondeada de 44 px a la izquierda
+- Nombre en una línea (con puntos suspensivos si no cabe) y, debajo, tiempo relativo · fecha corta
+- La urgencia la marca el color del tiempo relativo (tonos de texto rojo, naranja o verde, siempre con su texto): sin barra lateral ni badge
+- Cantidad a la derecha en tamaño pequeño, solo si no es “1 ud”
 
 ### 4.3 Inputs y formularios
 - Campos con fondo gris muy claro o blanco con borde
@@ -94,10 +93,9 @@ Jerarquía clara:
 - Campos obligatorios marcados con asterisco (`*`)
 - Campos opcionales indicados con “(opcional)”
 
-### 4.4 Navegación inferior (si se usa)
-- Iconos + texto
-- Estado activo en azul
-- Iconos: Inicio / Lista / Ajustes
+### 4.4 Navegación
+- Sin barra de navegación inferior: el Listado es la pantalla de inicio
+- Ajustes se abre con un icono en la cabecera del Listado y las pantallas secundarias vuelven con la flecha de la cabecera
 
 ---
 
@@ -111,13 +109,12 @@ Jerarquía clara:
 - Fondo limpio (blanco o gris muy suave)
 
 ### 5.1 Listado (Pantalla principal)
-- Cabecera con título + icono de sincronización
-- Filtros superiores (Todas / Pronto / Caducadas) o por categoría
-- Lista vertical de productos ordenada por fecha de caducidad
-- Cada producto muestra foto, nombre, fecha, días restantes y cantidad
-- Colores de urgencia muy visibles
-- Botón flotante “+” en la esquina inferior derecha
-- Navegación inferior (opcional pero recomendable)
+- Cabecera con título + icono de sincronización + icono de Ajustes
+- Buscador “Buscar producto”
+- Filtros en píldoras con contador (Todos · N / Caducados · N / Esta semana · N): la activa, oscura con texto blanco
+- Secciones “Caducados”, “Esta semana” y “Más adelante”, con el título en mayúsculas pequeñas de su color y el contador
+- Filas compactas (ver 4.2): unos 9 productos por pantalla a 390×844
+- Botón flotante “Añadir” en la esquina inferior derecha, con un degradado del fondo debajo que suaviza el corte de la lista
 
 ### 5.2 Nuevo Producto / Editar Producto
 - Cabecera con flecha de volver + título; en modo edición, icono de papelera (Eliminar) a la derecha
@@ -154,7 +151,8 @@ Jerarquía clara:
 - Email de la cuenta conectada
 - Toggle de notificaciones (opcional)
 - Botón “Cerrar sesión”
-- En un móvil de 390×740 cabe entero sin hacer scroll, con “Cerrar sesión” justo encima de la navegación inferior
+- Flecha de volver al Listado en la cabecera
+- En un móvil de 390×740 cabe entero sin hacer scroll, con “Cerrar sesión” justo encima de la zona segura inferior
 
 ---
 

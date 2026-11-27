@@ -44,9 +44,9 @@ async function montar(opciones = {}) {
   return pantalla.elemento;
 }
 
-const tarjetas = (raiz) => [...raiz.querySelectorAll('.lista-productos a.tarjeta')];
+const tarjetas = (raiz) => [...raiz.querySelectorAll('.lista-productos a.fila-producto')];
 const texto = (nodo, selector) => nodo.querySelector(selector)?.textContent.trim() ?? null;
-const nombres = (raiz) => tarjetas(raiz).map((t) => texto(t, '.tarjeta__nombre'));
+const nombres = (raiz) => tarjetas(raiz).map((t) => texto(t, '.fila-producto__nombre'));
 
 antesDeCada(async () => {
   storage.usarBaseDeDatos(BD_PRUEBAS);
@@ -72,22 +72,48 @@ prueba('Productos eliminados', async () => {
 });
 
 prueba('Tarjeta completa', async () => {
-  await storage.crearProducto({ nombre: 'Leche entera', fechaCaducidad: '2026-11-20', cantidad: 1, unidad: 'ud' });
-  const [tarjeta] = tarjetas(await montar());
-  igual(texto(tarjeta, '.tarjeta__nombre'), 'Leche entera');
-  igual(texto(tarjeta, '.tarjeta__caducidad'), 'Caduca el 20 nov 2026');
-  igual(texto(tarjeta, '.badge'), 'Caduca en 3 días');
-  igual(texto(tarjeta, '.tarjeta__cantidad'), 'Cantidad: 1 ud');
+  await storage.crearProducto({ nombre: 'Leche entera', fechaCaducidad: '2026-11-20', cantidad: 2, unidad: 'ud' });
+  const [fila] = tarjetas(await montar());
+  igual(texto(fila, '.fila-producto__nombre'), 'Leche entera');
+  igual(texto(fila, '.fila-producto__relativo'), 'En 3 días');
+  igual(texto(fila, '.fila-producto__fecha'), '20 nov');
+  igual(texto(fila, '.fila-producto__cantidad'), '2 ud');
+  verdadero(!/Caduca el|Cantidad:/.test(fila.textContent), 'sin "Caduca el" ni "Cantidad:"');
+  // Se lee en el orden visual, con el separador oculto a los lectores de pantalla.
+  igual(fila.querySelector('.fila-producto__separador')?.getAttribute('aria-hidden'), 'true');
 });
 
-prueba('cantidad decimal en la tarjeta', async () => {
+prueba('Cantidad de una unidad', async () => {
+  await storage.crearProducto({ nombre: 'Pan', fechaCaducidad: dentroDe(3), cantidad: 1, unidad: 'ud' });
+  igual(tarjetas(await montar())[0].querySelector('.fila-producto__cantidad'), null);
+});
+
+prueba('Cantidad decimal', async () => {
   await storage.crearProducto({ nombre: 'Harina', fechaCaducidad: dentroDe(40), cantidad: 0.5, unidad: 'kg' });
-  igual(texto(tarjetas(await montar())[0], '.tarjeta__cantidad'), 'Cantidad: 0,5 kg');
+  igual(texto(tarjetas(await montar())[0], '.fila-producto__cantidad'), '0,5 kg');
+});
+
+prueba('una unidad distinta de ud sí muestra la cantidad', async () => {
+  await storage.crearProducto({ nombre: 'Agua', fechaCaducidad: dentroDe(40), cantidad: 1, unidad: 'pack' });
+  igual(texto(tarjetas(await montar())[0], '.fila-producto__cantidad'), '1 pack');
+});
+
+prueba('Fecha de otro año', async () => {
+  await storage.crearProducto({ nombre: 'Arroz', fechaCaducidad: '2027-01-30' });
+  const raiz = await montar({ hoy: () => new Date(2026, 10, 25, 10) });
+  igual(texto(tarjetas(raiz)[0], '.fila-producto__fecha'), '30 ene 2027');
+});
+
+prueba('la fila no deja texto suelto', async () => {
+  await storage.crearProducto({ nombre: 'Pan', fechaCaducidad: dentroDe(3) });
+  await storage.crearProducto({ nombre: 'Harina', fechaCaducidad: dentroDe(40), cantidad: 0.5, unidad: 'kg' });
+  const raiz = await montar();
+  verdadero(!/\b(false|null|undefined)\b/.test(raiz.textContent), 'texto false/null/undefined');
 });
 
 prueba('Producto sin foto', async () => {
   await storage.crearProducto({ nombre: 'Pan', fechaCaducidad: dentroDe(1) });
-  const foto = tarjetas(await montar())[0].querySelector('.tarjeta__foto');
+  const foto = tarjetas(await montar())[0].querySelector('.fila-producto__foto');
   verdadero(foto, 'falta la zona de foto');
   verdadero(foto.querySelector('svg'), 'falta el icono genérico');
   igual(foto.querySelector('img'), null);
@@ -95,7 +121,7 @@ prueba('Producto sin foto', async () => {
 
 prueba('Producto con foto predeterminada', async () => {
   await storage.crearProducto({ nombre: 'Leche', fechaCaducidad: dentroDe(1), foto: { tipo: 'predeterminada', valor: 'leche' } });
-  const foto = tarjetas(await montar())[0].querySelector('.tarjeta__foto');
+  const foto = tarjetas(await montar())[0].querySelector('.fila-producto__foto');
   igual(foto.querySelector('img')?.getAttribute('src'), fotos.urlFoto?.('leche'));
   igual(foto.querySelector('img').getAttribute('alt'), '', 'decorativa: el nombre va al lado');
   igual(foto.querySelector('svg'), null, 'sin icono genérico');
@@ -103,27 +129,31 @@ prueba('Producto con foto predeterminada', async () => {
 
 prueba('Id desconocido', async () => {
   await storage.crearProducto({ nombre: 'Kiwi', fechaCaducidad: dentroDe(1), foto: { tipo: 'predeterminada', valor: 'kiwi' } });
-  const foto = tarjetas(await montar())[0].querySelector('.tarjeta__foto');
+  const foto = tarjetas(await montar())[0].querySelector('.fila-producto__foto');
   igual(foto.querySelector('img'), null, 'sin imagen');
   verdadero(foto.querySelector('svg'), 'icono genérico');
 });
 
 prueba('Nombre con marcado', async () => {
   await storage.crearProducto({ nombre: '<b>Pan</b>', fechaCaducidad: dentroDe(1) });
-  const nombre = tarjetas(await montar())[0].querySelector('.tarjeta__nombre');
+  const nombre = tarjetas(await montar())[0].querySelector('.fila-producto__nombre');
   igual(nombre.textContent, '<b>Pan</b>');
   igual(nombre.querySelector('b'), null, 'no se interpreta como HTML');
 });
 
 prueba('Colores por nivel', async () => {
-  await storage.crearProducto({ nombre: 'A', fechaCaducidad: dentroDe(-1) });
+  await storage.crearProducto({ nombre: 'A', fechaCaducidad: dentroDe(-3) });
   await storage.crearProducto({ nombre: 'B', fechaCaducidad: dentroDe(2) });
   await storage.crearProducto({ nombre: 'C', fechaCaducidad: dentroDe(5) });
   await storage.crearProducto({ nombre: 'D', fechaCaducidad: dentroDe(12) });
   const lista = tarjetas(await montar());
-  const nivel = (t) => [...t.classList].find((c) => c.startsWith('urgencia--'));
-  igualProfundo(lista.map(nivel), ['urgencia--rojo', 'urgencia--rojo', 'urgencia--naranja', 'urgencia--verde']);
-  igualProfundo(lista.map((t) => texto(t, '.badge')), ['¡Caducado!', 'Caduca en 2 días', 'Caduca en 5 días', 'Caduca en 12 días']);
+  const relativo = (t) => t.querySelector('.fila-producto__relativo');
+  const nivel = (t) => [...relativo(t).classList].find((c) => c.startsWith('urgencia-texto--'));
+  igualProfundo(lista.map(nivel), ['urgencia-texto--rojo', 'urgencia-texto--rojo', 'urgencia-texto--naranja', 'urgencia-texto--verde']);
+  igualProfundo(lista.map((t) => relativo(t).textContent.trim()), ['Hace 3 días', 'En 2 días', 'En 5 días', 'En 12 días']);
+  // Sin borde ni etiqueta de color en la fila.
+  verdadero(lista.every((t) => ![...t.classList].some((c) => c.startsWith('urgencia--'))), 'la fila no lleva urgencia--*');
+  verdadero(lista.every((t) => !t.querySelector('.badge')), 'sin .badge');
 });
 
 prueba('Abrir el detalle', async () => {
@@ -137,62 +167,200 @@ prueba('Abrir el detalle', async () => {
 
 prueba('Añadir producto', async () => {
   const fab = (await montar()).querySelector('a.fab');
-  verdadero(fab, 'falta el botón +');
+  verdadero(fab, 'falta el botón Añadir');
   igual(fab.getAttribute('href'), '#/producto/nuevo');
   igual(fab.getAttribute('aria-label'), 'Añadir producto');
+  igual(fab.textContent.trim(), 'Añadir', 'texto visible');
+  verdadero(fab.querySelector('svg'), 'icono +');
 });
 
 // ---------- Filtros ----------
 
 const pestanas = (raiz) => [...raiz.querySelectorAll('[role="tablist"] [role="tab"]')];
-const pestanaActiva = (raiz) => pestanas(raiz).filter((p) => p.getAttribute('aria-selected') === 'true').map((p) => p.textContent.trim());
-const pulsar = (raiz, textoPestana) => pestanas(raiz).find((p) => p.textContent.trim() === textoPestana).click();
+const nombrePestana = (p) => p.querySelector('.pestana__nombre')?.textContent.trim() ?? null;
+const pestanaActiva = (raiz) => pestanas(raiz).filter((p) => p.getAttribute('aria-selected') === 'true').map(nombrePestana);
+const pulsar = (raiz, textoPestana) => pestanas(raiz).find((p) => nombrePestana(p) === textoPestana).click();
+const secciones = (raiz) => [...raiz.querySelectorAll('.listado__seccion')].map((seccion) => [
+  seccion.querySelector('.listado__seccion-titulo')?.textContent.trim() ?? null,
+  seccion.querySelector('.listado__seccion-contador')?.textContent.trim() ?? null,
+  [...seccion.querySelectorAll('.fila-producto__nombre')].map((n) => n.textContent.trim()),
+]);
 
 async function crearConDias(...dias) {
   for (const n of dias) await storage.crearProducto({ nombre: `En ${n}`, fechaCaducidad: dentroDe(n) });
 }
 
-prueba('pestañas accesibles con Todas por defecto', async () => {
+prueba('pestañas accesibles con Todos por defecto', async () => {
   await crearConDias(1);
   const raiz = await montar();
   verdadero(raiz.querySelector('[role="tablist"]'), 'falta la lista de pestañas');
-  igualProfundo(pestanas(raiz).map((p) => p.textContent.trim()), ['Todas', 'Pronto', 'Caducadas']);
-  igualProfundo(pestanaActiva(raiz), ['Todas']);
+  igualProfundo(pestanas(raiz).map(nombrePestana), ['Todos', 'Caducados', 'Esta semana']);
+  igualProfundo(pestanaActiva(raiz), ['Todos']);
   verdadero(raiz.querySelector('[role="tabpanel"] .lista-productos'), 'la lista va en el panel');
 });
 
 prueba('Filtro Pronto', async () => {
   await crearConDias(-1, 0, 7, 8);
   const raiz = await montar();
-  pulsar(raiz, 'Pronto');
-  igualProfundo(pestanaActiva(raiz), ['Pronto']);
+  pulsar(raiz, 'Esta semana');
+  igualProfundo(pestanaActiva(raiz), ['Esta semana']);
   igualProfundo(nombres(raiz), ['En 0', 'En 7']);
 });
 
 prueba('Filtro Caducadas', async () => {
   await crearConDias(-3, -1, 0, 5);
   const raiz = await montar();
-  pulsar(raiz, 'Caducadas');
+  pulsar(raiz, 'Caducados');
   igualProfundo(nombres(raiz), ['En -3', 'En -1']);
-  pulsar(raiz, 'Todas');
+  pulsar(raiz, 'Todos');
   igualProfundo(nombres(raiz), ['En -3', 'En -1', 'En 0', 'En 5']);
 });
 
 prueba('Filtro conservado', async () => {
   await crearConDias(-1, 2, 9);
-  pulsar(await montar(), 'Pronto');
+  pulsar(await montar(), 'Esta semana');
   // Volver a Listado = montar la pantalla de nuevo.
   const raiz = await montar();
-  igualProfundo(pestanaActiva(raiz), ['Pronto']);
+  igualProfundo(pestanaActiva(raiz), ['Esta semana']);
   igualProfundo(nombres(raiz), ['En 2']);
+});
+
+prueba('Contadores', async () => {
+  await crearConDias(-3, -1, 0, 5, 20);
+  const raiz = await montar();
+  igualProfundo(pestanas(raiz).map((p) => p.textContent.trim()), ['Todos · 5', 'Caducados · 2', 'Esta semana · 2']);
+  igualProfundo(pestanas(raiz).map((p) => p.querySelector('.pestana__contador')?.textContent.trim()), ['5', '2', '2']);
+  // Los contadores no cambian al elegir otro filtro.
+  pulsar(raiz, 'Caducados');
+  igualProfundo(pestanas(raiz).map((p) => p.textContent.trim()), ['Todos · 5', 'Caducados · 2', 'Esta semana · 2']);
+});
+
+prueba('Tres secciones', async () => {
+  const hoy = new Date(2026, 10, 25, 10);
+  for (const n of [-20, -1, 0, 4, 9, 60]) {
+    await storage.crearProducto({ nombre: `En ${n}`, fechaCaducidad: dentroDe(n, hoy) });
+  }
+  const raiz = await montar({ hoy: () => hoy });
+  igualProfundo(secciones(raiz), [
+    ['Caducados', '2', ['En -20', 'En -1']],
+    ['Esta semana', '2', ['En 0', 'En 4']],
+    ['Más adelante', '2', ['En 9', 'En 60']],
+  ]);
+  // Cada sección es una <section> con su <h2>, que la etiqueta.
+  for (const seccion of raiz.querySelectorAll('.listado__seccion')) {
+    igual(seccion.tagName, 'SECTION');
+    const titulo = seccion.querySelector('h2');
+    verdadero(titulo && titulo.id, 'falta el h2 con id');
+    igual(seccion.getAttribute('aria-labelledby'), titulo.id);
+  }
+});
+
+prueba('Sección vacía oculta', async () => {
+  await crearConDias(2, 30);
+  const raiz = await montar();
+  igualProfundo(secciones(raiz).map(([titulo]) => titulo), ['Esta semana', 'Más adelante']);
+});
+
+prueba('Una sección con un filtro', async () => {
+  await crearConDias(-2, 3, 30);
+  const raiz = await montar();
+  pulsar(raiz, 'Caducados');
+  igualProfundo(secciones(raiz), [['Caducados', '1', ['En -2']]]);
+});
+
+prueba('Esta semana sin resultados', async () => {
+  await crearConDias(-2, 30);
+  const raiz = await montar();
+  pulsar(raiz, 'Esta semana');
+  igual(texto(raiz, '.listado__vacio-titulo'), 'No hay productos que caduquen esta semana');
 });
 
 prueba('cambiar de filtro no vuelve a leer el almacenamiento', async () => {
   let lecturas = 0;
   const p = await storage.crearProducto({ nombre: 'A', fechaCaducidad: dentroDe(1) });
   const raiz = await montar({ listar: async () => { lecturas += 1; return [p]; } });
-  pulsar(raiz, 'Caducadas');
-  pulsar(raiz, 'Pronto');
+  pulsar(raiz, 'Caducados');
+  pulsar(raiz, 'Esta semana');
+  igual(lecturas, 1);
+});
+
+// ---------- Búsqueda ----------
+
+const buscador = (raiz) => raiz.querySelector('input[type="search"]');
+function buscar(raiz, valor) {
+  const campo = buscador(raiz);
+  campo.value = valor;
+  campo.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+prueba('el buscador tiene el nombre accesible "Buscar producto"', async () => {
+  await crearConDias(1);
+  const campo = buscador(await montar());
+  verdadero(campo, 'falta el buscador');
+  igual(campo.getAttribute('aria-label'), 'Buscar producto');
+  igual(campo.closest('.listado__buscador')?.hidden, false);
+});
+
+prueba('Buscar sin acentos', async () => {
+  for (const nombre of ['Plátano', 'Pan', 'Leche']) {
+    await storage.crearProducto({ nombre, fechaCaducidad: dentroDe(3) });
+  }
+  const raiz = await montar();
+  buscar(raiz, 'PLATANO');
+  igualProfundo(nombres(raiz), ['Plátano']);
+  buscar(raiz, '');
+  igualProfundo(nombres(raiz).length, 3, 'con el buscador vacío se ven todos');
+});
+
+prueba('Búsqueda y filtro', async () => {
+  await storage.crearProducto({ nombre: 'Leche', fechaCaducidad: dentroDe(-2) });
+  await storage.crearProducto({ nombre: 'Leche de avena', fechaCaducidad: dentroDe(20) });
+  await storage.crearProducto({ nombre: 'Pan', fechaCaducidad: dentroDe(-1) });
+  const raiz = await montar();
+  pulsar(raiz, 'Caducados');
+  buscar(raiz, 'leche');
+  igualProfundo(nombres(raiz), ['Leche']);
+});
+
+prueba('Sin coincidencias', async () => {
+  await crearConDias(1, 2);
+  const raiz = await montar();
+  buscar(raiz, '<b>zzz</b>');
+  igual(texto(raiz, '.listado__vacio-titulo'), 'Ningún producto coincide con «<b>zzz</b>»');
+  igual(raiz.querySelector('.listado__vacio b'), null, 'el texto no se interpreta como HTML');
+  buscar(raiz, 'zzz');
+  igual(texto(raiz, '.listado__vacio-titulo'), 'Ningún producto coincide con «zzz»');
+  verdadero(raiz.querySelector('a.fab'), 'el botón Añadir sigue visible');
+  igual(raiz.querySelector('.listado__buscador').hidden, false, 'el buscador sigue visible');
+});
+
+prueba('Contadores con búsqueda', async () => {
+  for (const nombre of ['Yogur', 'Queso', 'Jamón']) {
+    await storage.crearProducto({ nombre, fechaCaducidad: dentroDe(-1) });
+  }
+  const raiz = await montar();
+  buscar(raiz, 'yog');
+  igualProfundo(nombres(raiz), ['Yogur']);
+  const caducados = pestanas(raiz).find((p) => nombrePestana(p) === 'Caducados');
+  igual(caducados.textContent.trim(), 'Caducados · 3');
+});
+
+prueba('Búsqueda vacía al volver', async () => {
+  await crearConDias(-1, 3);
+  let raiz = await montar();
+  buscar(raiz, 'En 3');
+  igualProfundo(nombres(raiz), ['En 3']);
+  raiz = await montar(); // vuelve a Listado desde otra pantalla
+  igual(buscador(raiz).value, '');
+  igualProfundo(nombres(raiz), ['En -1', 'En 3']);
+});
+
+prueba('buscar no vuelve a leer el almacenamiento', async () => {
+  let lecturas = 0;
+  const p = await storage.crearProducto({ nombre: 'Leche', fechaCaducidad: dentroDe(1) });
+  const raiz = await montar({ listar: async () => { lecturas += 1; return [p]; } });
+  buscar(raiz, 'le');
+  buscar(raiz, 'x');
   igual(lecturas, 1);
 });
 
@@ -211,9 +379,10 @@ prueba('Sin productos', async () => {
   const vacio = raiz.querySelector('.listado__vacio');
   verdadero(vacio, 'falta el estado vacío');
   igual(texto(vacio, '.listado__vacio-titulo'), 'Todavía no hay productos');
-  igual(texto(vacio, '.listado__vacio-texto'), 'Pulsa + para añadir el primero');
+  igual(texto(vacio, '.listado__vacio-texto'), 'Pulsa «Añadir» para guardar el primero');
   verdadero(vacio.querySelector('svg'), 'falta el icono');
   igual(raiz.querySelector('[role="tablist"]').hidden, true, 'las pestañas se ocultan');
+  igual(raiz.querySelector('.listado__buscador')?.hidden, true, 'el buscador se oculta');
   verdadero(raiz.querySelector('a.fab'), 'el botón + sigue visible');
   igual(raiz.querySelector('.lista-productos'), null);
 });
@@ -221,13 +390,13 @@ prueba('Sin productos', async () => {
 prueba('Filtro sin resultados', async () => {
   await storage.crearProducto({ nombre: 'Arroz', fechaCaducidad: dentroDe(40) });
   const raiz = await montar();
-  pulsar(raiz, 'Caducadas');
+  pulsar(raiz, 'Caducados');
   igual(texto(raiz, '.listado__vacio-titulo'), 'No hay productos caducados');
   igual(raiz.querySelector('[role="tablist"]').hidden, false, 'las pestañas siguen visibles');
   igual(raiz.querySelector('.lista-productos'), null);
-  pulsar(raiz, 'Pronto');
-  igual(texto(raiz, '.listado__vacio-titulo'), 'No hay productos que caduquen pronto');
-  pulsar(raiz, 'Todas');
+  pulsar(raiz, 'Esta semana');
+  igual(texto(raiz, '.listado__vacio-titulo'), 'No hay productos que caduquen esta semana');
+  pulsar(raiz, 'Todos');
   igualProfundo(nombres(raiz), ['Arroz']);
   igual(raiz.querySelector('.listado__vacio'), null);
 });
@@ -240,8 +409,11 @@ prueba('Almacenamiento no disponible', async () => {
   igual(texto(error, '.listado__error-titulo'), 'No se pudieron cargar los productos');
   const boton = error.querySelector('button');
   igual(boton?.textContent.trim(), 'Reintentar');
-  verdadero(raiz.querySelector('a.fab'), 'el botón + sigue visible');
+  verdadero(raiz.querySelector('a.fab'), 'el botón Añadir sigue visible');
   igual(raiz.querySelector('[role="tabpanel"]').hasAttribute('aria-busy'), false, 'deja de estar ocupado');
+  const pantalla = listado.crearPantallaListado({ hoy: () => HOY_FIJO, listar: fallo });
+  await pantalla.cargado;
+  igual(pantalla.accionCabecera?.getAttribute('href'), '#/ajustes', 'el acceso a Ajustes sigue presente');
 });
 
 prueba('Reintento correcto', async () => {
@@ -277,10 +449,10 @@ prueba('La app vuelve al día siguiente', async () => {
   let fecha = HOY_FIJO;
   let lecturas = 0;
   const raiz = await montar({ hoy: () => fecha, listar: async () => { lecturas += 1; return [p]; } });
-  igual(texto(raiz, '.badge'), 'Caduca mañana');
+  igual(texto(raiz, '.fila-producto__relativo'), 'Mañana');
   fecha = new Date(2026, 10, 18, 8, 0); // al día siguiente
   simularVuelta();
-  igual(texto(raiz, '.badge'), 'Caduca hoy');
+  igual(texto(raiz, '.fila-producto__relativo'), 'Hoy');
   igual(lecturas, 1, 'no vuelve a leer el almacenamiento');
 });
 
@@ -354,7 +526,7 @@ async function montarConGestos(opciones = {}) {
   return pantalla.elemento;
 }
 
-const tarjetaDe = (raiz, nombre) => tarjetas(raiz).find((t) => texto(t, '.tarjeta__nombre') === nombre);
+const tarjetaDe = (raiz, nombre) => tarjetas(raiz).find((t) => texto(t, '.fila-producto__nombre') === nombre);
 const contenedorDe = (tarjeta) => tarjeta.closest('.tarjeta-deslizable');
 const abierta = (tarjeta) => contenedorDe(tarjeta).classList.contains('tarjeta-deslizable--abierta');
 const botonEliminar = (tarjeta) => contenedorDe(tarjeta).querySelector('.tarjeta__eliminar');
@@ -459,6 +631,8 @@ prueba('Una sola abierta', async () => {
   await storage.crearProducto({ nombre: 'Leche', fechaCaducidad: dentroDe(3) });
   await storage.crearProducto({ nombre: 'Queso', fechaCaducidad: dentroDe(9) });
   const raiz = await montarConGestos();
+  const seccionDe = (nombre) => tarjetaDe(raiz, nombre).closest('.listado__seccion');
+  verdadero(seccionDe('Leche') && seccionDe('Leche') !== seccionDe('Queso'), 'Leche y Queso van en secciones distintas');
   deslizarTarjeta(tarjetaDe(raiz, 'Leche'), -150);
   deslizarTarjeta(tarjetaDe(raiz, 'Queso'), -150);
   igual(abierta(tarjetaDe(raiz, 'Leche')), false, 'Leche se cierra');
@@ -562,7 +736,7 @@ async function sinErroresEnConsola(fn) {
 prueba('Foto real en el dispositivo', async () => {
   await storage.guardarFoto(FOTO_REAL, await imagenReal(), { subida: true });
   await storage.crearProducto({ nombre: 'Tarta', fechaCaducidad: dentroDe(1), foto: { tipo: 'real', valor: FOTO_REAL } });
-  const foto = tarjetas(await montar())[0].querySelector('.tarjeta__foto');
+  const foto = tarjetas(await montar())[0].querySelector('.fila-producto__foto');
   await esperarHasta(() => foto.querySelector('img')?.getAttribute('src')?.startsWith('blob:'));
   igual(foto.querySelector('img').getAttribute('alt'), '', 'decorativa: el nombre va al lado');
   igual(foto.querySelector('svg'), null, 'sin icono genérico');
@@ -571,7 +745,7 @@ prueba('Foto real en el dispositivo', async () => {
 prueba('Foto real todavía no disponible', async () => {
   await sinErroresEnConsola(async () => {
     await storage.crearProducto({ nombre: 'Tarta', fechaCaducidad: dentroDe(1), foto: { tipo: 'real', valor: FOTO_REAL } });
-    const foto = tarjetas(await montar())[0].querySelector('.tarjeta__foto');
+    const foto = tarjetas(await montar())[0].querySelector('.fila-producto__foto');
     await new Promise((r) => setTimeout(r, 50));
     igual(foto.querySelector('img'), null, 'sin imagen');
     verdadero(foto.querySelector('svg'), 'icono genérico');
@@ -595,7 +769,7 @@ async function montarConAviso(opciones = {}) {
 const avisoDe = (raiz) => raiz.querySelector('.aviso-caducidad');
 const avisoVisible = (raiz) => Boolean(avisoDe(raiz) && !avisoDe(raiz).hidden);
 const textoAviso = (raiz) => avisoDe(raiz)?.querySelector('.aviso-caducidad__texto')?.textContent.trim() ?? null;
-const filtroActivo = (raiz) => raiz.querySelector('[role="tab"][aria-selected="true"]')?.textContent.trim();
+const filtroActivo = (raiz) => raiz.querySelector('[role="tab"][aria-selected="true"] .pestana__nombre')?.textContent.trim();
 
 prueba('Aviso: Solo próximos', async () => {
   modAvisos.reiniciarAvisos();
@@ -634,7 +808,7 @@ prueba('Tocar el aviso: Con caducados', async () => {
   await crearConDias(-1, 0, 1, 8);
   const raiz = await montarConAviso();
   avisoDe(raiz).querySelector('.aviso-caducidad__ver').click();
-  igual(filtroActivo(raiz), 'Caducadas');
+  igual(filtroActivo(raiz), 'Caducados');
   igualProfundo(nombres(raiz), ['En -1']);
 });
 
@@ -643,7 +817,7 @@ prueba('Tocar el aviso: Solo próximos', async () => {
   await crearConDias(1, 8);
   const raiz = await montarConAviso();
   avisoDe(raiz).querySelector('.aviso-caducidad__ver').click();
-  igual(filtroActivo(raiz), 'Pronto');
+  igual(filtroActivo(raiz), 'Esta semana');
 });
 
 prueba('Cerrar y volver al Listado', async () => {
@@ -823,4 +997,41 @@ prueba('Eliminar desde el Listado cancelado no avisa', async () => {
   botonEliminar(tarjeta).click();
   await esperar(50);
   igualProfundo(avisos, []);
+});
+
+// ---------- Acceso a Ajustes y botón "Añadir" (rediseno-listado) ----------
+
+prueba('Abrir Ajustes desde el Listado', async () => {
+  await cargarEstilosApp();
+  const pantalla = listado.crearPantallaListado({ hoy: () => HOY_FIJO });
+  await pantalla.cargado;
+  const acceso = pantalla.accionCabecera;
+  verdadero(acceso, 'falta el acceso a Ajustes');
+  igual(acceso.tagName, 'A');
+  igual(acceso.getAttribute('href'), '#/ajustes');
+  igual(acceso.getAttribute('aria-label'), 'Ajustes');
+  verdadero(acceso.querySelector('svg'), 'icono de ajustes');
+  // Zona táctil mínima (ui-theme): al menos 44×44 px.
+  zonaGestos.replaceChildren(acceso);
+  const { width, height } = acceso.getBoundingClientRect();
+  verdadero(width >= 44 && height >= 44, `mide ${width}×${height}`);
+});
+
+prueba('Última fila visible', async () => {
+  for (let n = 0; n < 15; n += 1) {
+    await storage.crearProducto({ nombre: `Producto ${n}`, fechaCaducidad: dentroDe(n * 3 - 6) });
+  }
+  const raiz = await montarConGestos();
+  // Desplaza hasta que el final del Listado coincide con el final de la ventana.
+  window.scrollBy(0, raiz.getBoundingClientRect().bottom - window.innerHeight);
+  try {
+    const filas = tarjetas(raiz);
+    igual(filas.length, 15);
+    const ultima = filas.at(-1).getBoundingClientRect();
+    const fab = raiz.querySelector('a.fab').getBoundingClientRect();
+    verdadero(fab.height > 0, 'el botón Añadir se ve');
+    verdadero(ultima.bottom <= fab.top, `la última fila acaba en ${ultima.bottom} y Añadir empieza en ${fab.top}`);
+  } finally {
+    window.scrollTo(0, 0);
+  }
 });
